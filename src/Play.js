@@ -25,7 +25,7 @@ class Play extends Phaser.Scene {
         this.ball.body.setCollideWorldBounds(true)
         this.ball.body.setBounce(1)
 
-        this.paddle = this.physics.add.sprite(this.input.activePointer.x, height - 60, 'paddle')
+        this.paddle = this.physics.add.sprite(this.input.activePointer.x, height - 30, 'paddle')
         this.paddle.body.setImmovable(true)
 
         this.physics.add.collider(this.ball, this.paddle, (ball, paddle) => {
@@ -85,7 +85,7 @@ class Play extends Phaser.Scene {
 
     update(time, delta) {
         this.paddle.setX(this.input.activePointer.x)
-        this.paddle.setY(height - 60)
+        this.paddle.setY(height - 30)
 
         //this.updateCentipede(delta)
     }
