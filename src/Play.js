@@ -48,13 +48,13 @@ class Play extends Phaser.Scene {
         
         //spiral movement settings
         this.spiralAngle = 0
-        this.SpiralRadius = Math.max(width, height) * 0.55 //markus eger lowk W pull
+        this.spiralRadius = Math.max(width, height) * 0.55 //markus eger lowk W pull
         this.spiralSpeed = 1.2
         this.spiralShrinkSpeed = 25
 
         //Create centipede segments:
         for (let i = 0; i < this.segmentCount; i++) {
-            let spite = 'centipedeBody'
+            let sprite = 'centipedeBody'
 
             if(i === 0) {
                 sprite = 'centipedeHead'
@@ -76,7 +76,7 @@ class Play extends Phaser.Scene {
         this.centipedePath = []
     }
 
-    update() {
+    update(time, delta) {
         this.paddle.setX(this.input.activePointer.x)
         this.paddle.setY(height / 2)
 
