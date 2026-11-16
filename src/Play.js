@@ -10,9 +10,9 @@ class Play extends Phaser.Scene {
         this.load.image('bg', 'bg.png')
 
         //Cattipede
-        this.load.image('centipedeHead', 'caterpillar head 1.png')
-        this.load.image('centipedeBody', 'caterpillar body 1.png')
-        this.load.image('centipedeTail', 'caterpillar tail 1.png')
+        this.load.image('centipedeHead', 'catterpillar head 1.png')
+        this.load.image('centipedeBody', 'catterpillar body 1.png')
+        this.load.image('centipedeTail', 'catterpillar tail 1.png')
     }
 
     create() {
@@ -76,18 +76,19 @@ class Play extends Phaser.Scene {
         this.centipedePath = []
 
         //just want to see if centipede loads in
-        this.add.image(
+        /*this.add.image(
             width / 2,
             height / 2,
             'centipedeHead'
         ).setScale(0.5)
+        */
     }
 
     update(time, delta) {
         this.paddle.setX(this.input.activePointer.x)
         this.paddle.setY(height / 2)
 
-        //this.updateCentipede(delta)
+        this.updateCentipede(delta)
     }
 
     //adding the spiraling effect: 
