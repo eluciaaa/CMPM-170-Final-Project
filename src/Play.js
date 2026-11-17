@@ -8,7 +8,7 @@ class Play extends Phaser.Scene {
         this.load.path = './assets/'
         this.load.image('ball', 'ball.png')
         this.load.image('paddle', 'paddle.png')
-        this.load.image('bg', 'capstone_bg.png')
+        this.load.image('bg', 'capstone bg.png')
 
         //audio assets
         this.load.audio('technoloop', 'techno_loop_recording.wav')
