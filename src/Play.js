@@ -125,7 +125,7 @@ class Play extends Phaser.Scene {
 
         // Movement settings
         this.spiralSpeed = 0.9
-        this.spiralShrinkSpeed = 5
+        this.spiralShrinkSpeed = 12
 
         // Prevent the spiral from collapsing completely
         this.minimumSpiralRadius = width * 0.12
