@@ -109,22 +109,28 @@ class Play extends Phaser.Scene {
             repeat: -1
         })
         
-        //spiral movement settings
+        // Spiral movement settings
         this.spiralAngle = 0
 
-        //center the spiral in the upper half
+        // Center of the upper playfield
         this.spiralCenterX = width * 0.5
         this.spiralCenterY = height * 0.25
 
-        //smaller spiral
-        this.spiralRadius = height * 0.18
+        // Wide horizontal spiral
+        this.spiralRadius = width * 0.45
         this.initialSpiralRadius = this.spiralRadius
 
-        //movement speed
-        this.spiralSpeed = 1.4
-        this.spiralShrinkSpeed = 15
+        // Flatten the spiral vertically
+        this.spiralVerticalScale = 0.30
 
-        //entry movement
+        // Movement settings
+        this.spiralSpeed = 0.9
+        this.spiralShrinkSpeed = 5
+
+        // Prevent the spiral from collapsing completely
+        this.minimumSpiralRadius = width * 0.12
+
+        // Entry movement
         this.isEntering = true
         this.entryX = width + 50
         this.entryY = this.spiralCenterY
@@ -254,19 +260,27 @@ class Play extends Phaser.Scene {
 
         } else {
 
-            //move along the shrinking spiral
+            // Rotate around the spiral
             this.spiralAngle += this.spiralSpeed * dt
 
+            // Slowly shrink the spiral
             this.spiralRadius -= this.spiralShrinkSpeed * dt
 
-            //stop shrinking at the center
-            this.spiralRadius = Math.max(0, this.spiralRadius)
+            // Don't allow the spiral to collapse into a point
+            this.spiralRadius = Math.max(
+                this.minimumSpiralRadius,
+                this.spiralRadius
+            )
 
+            // Wide horizontal movement
             headX = this.spiralCenterX +
                 Math.cos(this.spiralAngle) * this.spiralRadius
 
+            // Compressed vertical movement
             headY = this.spiralCenterY +
-                Math.sin(this.spiralAngle) * this.spiralRadius
+                Math.sin(this.spiralAngle) *
+                this.spiralRadius *
+                this.spiralVerticalScale
         }
 
         //move head
