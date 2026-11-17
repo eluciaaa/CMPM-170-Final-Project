@@ -4,11 +4,19 @@ class Play extends Phaser.Scene {
     }
 
     preload() {
+        //image assets
         this.load.path = './assets/'
         this.load.image('ball', 'ball.png')
         this.load.image('paddle', 'paddle.png')
         this.load.image('bg', 'capstone_bg.png')
+
+        //audio assets
         this.load.audio('technoloop', 'techno_loop_recording.wav')
+        this.load.audio('paddleHit', 'ball sfx.wav') //by michorvath on freesound
+        this.load.audio('cattDeath', 'caterpillar fully dying sfx.mp3') //by quavosh on freesound
+        this.load.audio('cattHit', 'caterpillar hit by ball sfx.wav') // by stumpbutt on freesound
+        this.load.audio('gameOver', 'game over sfx.wav') // by hotpin7 on freesound
+        this.load.audio('powerUpPickup', 'pick up powerup sfx.wav') //by LilMati on freesound
 
         //Cattipede
         this.load.image('centipedeHead', 'catterpillar head 1.png')
@@ -25,6 +33,28 @@ class Play extends Phaser.Scene {
             loop: true
         })
         this.bgm.play()
+
+        //setting up other in game sounds
+        this.paddleHit = this.sound.add('paddleHit', {
+            volume: 1,
+            loop: false
+        })
+        this.enemyDeath = this.sound.add('cattDeath', {
+            volume: 1,
+            loop: false
+        })
+        this.enemyHit = this.sound.add('cattHit', {
+            volume: 1,
+            loop: false
+        })
+        this.gameOver = this.sound.add('gameOver', {
+            volume: 1,
+            loop: false
+        })
+        this.powerUp = this.sound.add('powerUpPickup', {
+            volume: 1, 
+            loop: false
+        })
 
         this.bg = this.add.image(0, 0, 'bg').setOrigin(0).setDisplaySize(width/2, height)
         this.bg = this.add.image(960, 0, 'bg').setOrigin(0).setDisplaySize(width/2, height)
@@ -50,6 +80,8 @@ class Play extends Phaser.Scene {
                 speed * Math.sin(angle),
                 verticalDirection * speed * Math.cos(angle)
             )
+
+            this.paddleHit.play()
         })
 
         //centipede settings, so we can change along way
