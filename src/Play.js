@@ -7,7 +7,8 @@ class Play extends Phaser.Scene {
         this.load.path = './assets/'
         this.load.image('ball', 'ball.png')
         this.load.image('paddle', 'paddle.png')
-        this.load.image('bg', 'bg.png')
+        this.load.image('bg', 'capstone_bg.png')
+        this.load.audio('technoloop', 'techno_loop_recording.wav')
 
         //Cattipede
         this.load.image('centipedeHead', 'catterpillar head 1.png')
@@ -19,12 +20,19 @@ class Play extends Phaser.Scene {
     }
 
     create() {
-        this.bg = this.add.image(0, 0, 'bg').setOrigin(0)
+        this.bgm = this.sound.add('technoloop', {
+            volume: 1,
+            loop: true
+        })
+        this.bgm.play()
+
+        this.bg = this.add.image(0, 0, 'bg').setOrigin(0).setDisplaySize(width/2, height)
+        this.bg = this.add.image(960, 0, 'bg').setOrigin(0).setDisplaySize(width/2, height)
         
         this.ball = this.physics.add.sprite(width / 2, 0, 'ball')
         this.ball.body.setCircle(this.ball.width / 2)
         this.ball.setY(this.ball.height / 2)
-        this.ball.body.setVelocityY(450)
+        this.ball.body.setVelocityY(500)
         this.ball.body.setCollideWorldBounds(true)
         this.ball.body.setBounce(1)
 
@@ -46,8 +54,8 @@ class Play extends Phaser.Scene {
 
         //centipede settings, so we can change along way
         this.centipede = []
-        this.segmentCount = 12
-        this.segmentSpacing = 30
+        this.segmentCount = 100
+        this.segmentSpacing = 62
 
         //animations
         this.anims.create({
@@ -72,10 +80,11 @@ class Play extends Phaser.Scene {
         //spiral movement settings
         this.spiralAngle = 0
         this.spiralRadius = Math.max(width, height) * 0.55 //markus eger lowk W pull
-        this.spiralSpeed = 0.5
-        this.spiralShrinkSpeed = 20
+        this.initialSpiralRadius = this.spiralRadius
+        this.spiralSpeed = 0.15
+        this.spiralShrinkSpeed = 5
 
-        //Create centipede segments:
+        //create centipede segments:
         for (let i = 0; i < this.segmentCount; i++) {
             let sprite = 'centipedeBody'
             let animation = 'centipedeBodyAnim'
@@ -99,26 +108,31 @@ class Play extends Phaser.Scene {
             this.centipede.push(segment)
         }
 
-        //Make body follow head, so we store head position
+        //make body follow head, so we store head position
         this.centipedePath = []
         const initialPathLength = this.segmentCount * this.segmentSpacing + 1
-        for (let i = 0; i < initialPathLength; i++) {
+        for (let i = initialPathLength - 1; i >= 0; i--) {
             const elapsed = i / 60
             const radius = this.spiralRadius + this.spiralShrinkSpeed * elapsed
             const angle = this.spiralAngle - this.spiralSpeed * elapsed
-            this.centipedePath.push({
+            const position = {
                 x: width / 2 + Math.cos(angle) * radius,
                 y: height / 2 + Math.sin(angle) * radius
-            })
+            }
+            const previousPosition = this.centipedePath[this.centipedePath.length - 1]
+            position.distance = previousPosition
+                ? previousPosition.distance + Phaser.Math.Distance.Between(
+                    previousPosition.x,
+                    previousPosition.y,
+                    position.x,
+                    position.y
+                )
+                : 0
+            this.centipedePath.push(position)
         }
-
-        //just want to see if centipede loads in
-        /*this.add.image(
-            width / 2,
-            height / 2,
-            'centipedeHead'
-        ).setScale(0.5)
-        */
+        const headPathIndex = this.centipedePath.length - 1
+        this.segmentDistance = this.centipedePath[headPathIndex].distance -
+            this.centipedePath[headPathIndex - this.segmentSpacing].distance
     }
 
     update(time, delta) {
@@ -128,15 +142,44 @@ class Play extends Phaser.Scene {
         this.updateCentipede(delta)
     }
 
+    getCentipedePathPosition(targetDistance) {
+        let low = 0
+        let high = this.centipedePath.length - 1
+
+        //find the trail points around the specific distance
+        while (low < high) {
+            const middle = Math.floor((low + high) / 2)
+            if (this.centipedePath[middle].distance < targetDistance) {
+                low = middle + 1
+            } else {
+                high = middle
+            }
+        }
+
+        const newerPosition = this.centipedePath[low]
+        const olderPosition = this.centipedePath[Math.max(0, low - 1)]
+        const distanceBetween = newerPosition.distance - olderPosition.distance
+
+        //blend between those points for a smooth position
+        const interpolation = distanceBetween > 0
+            ? (targetDistance - olderPosition.distance) / distanceBetween
+            : 0
+
+        return {
+            x: Phaser.Math.Linear(olderPosition.x, newerPosition.x, interpolation),
+            y: Phaser.Math.Linear(olderPosition.y, newerPosition.y, interpolation)
+        }
+    }
+
     //adding the spiraling effect: 
     updateCentipede(delta) {
         const dt = delta / 1000
 
-        // Move along a shrinking spiral
+        //move along a shrinking spiral
         this.spiralAngle += this.spiralSpeed * dt
         this.spiralRadius -= this.spiralShrinkSpeed * dt
 
-        // Stop shrinking at the center
+        //stop shrinking at the center
         this.spiralRadius = Math.max(0, this.spiralRadius)
 
         const centerX = width / 2
@@ -148,32 +191,68 @@ class Play extends Phaser.Scene {
         const headY = centerY +
             Math.sin(this.spiralAngle) * this.spiralRadius
 
-        // Move head
+        //move head
         this.centipede[0].setPosition(headX, headY)
 
-        // Record head's position
-        this.centipedePath.unshift({ x: headX, y: headY })
-
-        // Move each body segment along the path
-        for (let i = 1; i < this.centipede.length; i++) {
-            const pathIndex = i * this.segmentSpacing
-
-            if (this.centipedePath[pathIndex]) {
-                const position = this.centipedePath[pathIndex]
-
-                this.centipede[i].setPosition(
-                    position.x,
-                    position.y
-                )
-            }
+        //record head's position
+        const previousHeadPosition = this.centipedePath[this.centipedePath.length - 1]
+        const headPathPosition = {
+            x: headX,
+            y: headY,
+            distance: previousHeadPosition.distance + Phaser.Math.Distance.Between(
+                previousHeadPosition.x,
+                previousHeadPosition.y,
+                headX,
+                headY
+            )
+        }
+        this.centipedePath.push(headPathPosition)
+        if (previousHeadPosition) {
+            this.centipede[0].setRotation(
+                Phaser.Math.Angle.Between(
+                    previousHeadPosition.x,
+                    previousHeadPosition.y,
+                    headX,
+                    headY
+                ) - Math.PI / 2
+            )
         }
 
-        // Prevent the path array from growing forever
-        const maxPathLength =
-            this.segmentCount * this.segmentSpacing + 1
+        //move each body segment along the path
+        for (let i = 1; i < this.centipede.length; i++) {
+            const targetDistance = headPathPosition.distance - i * this.segmentDistance
+            const position = this.getCentipedePathPosition(targetDistance)
 
-        if (this.centipedePath.length > maxPathLength) {
-            this.centipedePath.length = maxPathLength
+            this.centipede[i].setPosition(position.x, position.y)
+            this.centipede[i].setRotation(
+                Phaser.Math.Angle.Between(
+                    position.x,
+                    position.y,
+                    this.centipede[i - 1].x,
+                    this.centipede[i - 1].y
+                ) - Math.PI / 2
+            )
+        }
+
+        //keep enough traveled distance for the tail to follow
+        if (this.centipedePath.length > 1200) {
+            const oldestNeededDistance = headPathPosition.distance -
+                this.segmentDistance * (this.segmentCount - 1) - this.segmentDistance
+            let low = 0
+            let high = this.centipedePath.length - 1
+
+            while (low < high) {
+                const middle = Math.floor((low + high) / 2)
+                if (this.centipedePath[middle].distance < oldestNeededDistance) {
+                    low = middle + 1
+                } else {
+                    high = middle
+                }
+            }
+
+            if (low > 1) {
+                this.centipedePath.splice(0, low - 1)
+            }
         }
     }
 }
