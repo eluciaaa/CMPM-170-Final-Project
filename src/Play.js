@@ -11,8 +11,11 @@ class Play extends Phaser.Scene {
 
         //Cattipede
         this.load.image('centipedeHead', 'catterpillar head 1.png')
+        this.load.image('centipedeHead2', 'catterpillar head 2.png')
         this.load.image('centipedeBody', 'catterpillar body 1.png')
+        this.load.image('centipedeBody2', 'catterpillar body 2.png')
         this.load.image('centipedeTail', 'catterpillar tail 1.png')
+        this.load.image('centipedeTail2', 'catterpillar tail 2.png')
     }
 
     create() {
@@ -44,23 +47,46 @@ class Play extends Phaser.Scene {
         //centipede settings, so we can change along way
         this.centipede = []
         this.segmentCount = 12
-        this.segmentSpacing = 22
+        this.segmentSpacing = 30
+
+        //animations
+        this.anims.create({
+            key: 'centipedeHeadAnim',
+            frames: [{ key: 'centipedeHead' }, { key: 'centipedeHead2' }],
+            frameRate: 4,
+            repeat: -1
+        })
+        this.anims.create({
+            key: 'centipedeBodyAnim',
+            frames: [{ key: 'centipedeBody' }, { key: 'centipedeBody2' }],
+            frameRate: 4,
+            repeat: -1
+        })
+        this.anims.create({
+            key: 'centipedeTailAnim',
+            frames: [{ key: 'centipedeTail' }, { key: 'centipedeTail2' }],
+            frameRate: 4,
+            repeat: -1
+        })
         
         //spiral movement settings
         this.spiralAngle = 0
         this.spiralRadius = Math.max(width, height) * 0.55 //markus eger lowk W pull
-        this.spiralSpeed = 1.2
-        this.spiralShrinkSpeed = 25
+        this.spiralSpeed = 0.5
+        this.spiralShrinkSpeed = 20
 
         //Create centipede segments:
         for (let i = 0; i < this.segmentCount; i++) {
             let sprite = 'centipedeBody'
+            let animation = 'centipedeBodyAnim'
 
             if(i === 0) {
                 sprite = 'centipedeHead'
+                animation = 'centipedeHeadAnim'
             }
             else if (i === this.segmentCount - 1){
                 sprite = 'centipedeTail'
+                animation = 'centipedeTailAnim'
             }
 
             const segment = this.add.sprite(
@@ -68,12 +94,23 @@ class Play extends Phaser.Scene {
                 height/2,
                 sprite
             )
-            segment.setScale(0.5)
+            segment.setScale(9)
+            segment.play(animation)
             this.centipede.push(segment)
         }
 
         //Make body follow head, so we store head position
         this.centipedePath = []
+        const initialPathLength = this.segmentCount * this.segmentSpacing + 1
+        for (let i = 0; i < initialPathLength; i++) {
+            const elapsed = i / 60
+            const radius = this.spiralRadius + this.spiralShrinkSpeed * elapsed
+            const angle = this.spiralAngle - this.spiralSpeed * elapsed
+            this.centipedePath.push({
+                x: width / 2 + Math.cos(angle) * radius,
+                y: height / 2 + Math.sin(angle) * radius
+            })
+        }
 
         //just want to see if centipede loads in
         /*this.add.image(
