@@ -56,8 +56,8 @@ class Play extends Phaser.Scene {
             loop: false
         })
 
-        this.bg = this.add.image(0, 0, 'bg').setOrigin(0).setDisplaySize(width/2, height)
-        this.bg = this.add.image(960, 0, 'bg').setOrigin(0).setDisplaySize(width/2, height)
+        this.bg = this.add.image(0, 0, 'bg').setOrigin(0).setDisplaySize(width, height)
+        //this.bg = this.add.image(960, 0, 'bg').setOrigin(0).setDisplaySize(width/2, height)
         
         this.ball = this.physics.add.sprite(width / 2, 0, 'ball')
         this.ball.body.setCircle(this.ball.width / 2)
