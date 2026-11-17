@@ -86,8 +86,8 @@ class Play extends Phaser.Scene {
 
         //centipede settings, so we can change along way
         this.centipede = []
-        this.segmentCount = 100
-        this.segmentSpacing = 62
+        this.segmentCount = 35
+        this.segmentSpacing = 12
 
         //animations
         this.anims.create({
@@ -111,10 +111,24 @@ class Play extends Phaser.Scene {
         
         //spiral movement settings
         this.spiralAngle = 0
-        this.spiralRadius = Math.max(width, height) * 0.55 //markus eger lowk W pull
+
+        //center the spiral in the upper half
+        this.spiralCenterX = width * 0.5
+        this.spiralCenterY = height * 0.25
+
+        //smaller spiral
+        this.spiralRadius = height * 0.18
         this.initialSpiralRadius = this.spiralRadius
-        this.spiralSpeed = 0.15
-        this.spiralShrinkSpeed = 5
+
+        //movement speed
+        this.spiralSpeed = 1.4
+        this.spiralShrinkSpeed = 15
+
+        //entry movement
+        this.isEntering = true
+        this.entryX = width + 50
+        this.entryY = this.spiralCenterY
+        this.entrySpeed = 220
 
         //create centipede segments:
         for (let i = 0; i < this.segmentCount; i++) {
@@ -135,36 +149,46 @@ class Play extends Phaser.Scene {
                 height/2,
                 sprite
             )
-            segment.setScale(9)
+            segment.setScale(4)
             segment.play(animation)
             this.centipede.push(segment)
         }
 
         //make body follow head, so we store head position
+        //distance between body segments
+        this.segmentDistance = this.centipede[1].displayHeight * 0.8
+
+//make body follow head, so we store head position
         this.centipedePath = []
-        const initialPathLength = this.segmentCount * this.segmentSpacing + 1
+
+        const initialPathLength =
+            this.segmentCount * this.segmentSpacing + 1
+
+        const pathStep = this.segmentDistance / this.segmentSpacing
+
+        //start the body outside the right side of the screen
         for (let i = initialPathLength - 1; i >= 0; i--) {
-            const elapsed = i / 60
-            const radius = this.spiralRadius + this.spiralShrinkSpeed * elapsed
-            const angle = this.spiralAngle - this.spiralSpeed * elapsed
+
             const position = {
-                x: width / 2 + Math.cos(angle) * radius,
-                y: height / 2 + Math.sin(angle) * radius
+                x: this.entryX + i * pathStep,
+                y: this.entryY
             }
-            const previousPosition = this.centipedePath[this.centipedePath.length - 1]
+
+            const previousPosition =
+                this.centipedePath[this.centipedePath.length - 1]
+
             position.distance = previousPosition
-                ? previousPosition.distance + Phaser.Math.Distance.Between(
+                ? previousPosition.distance +
+                Phaser.Math.Distance.Between(
                     previousPosition.x,
                     previousPosition.y,
                     position.x,
                     position.y
                 )
                 : 0
+
             this.centipedePath.push(position)
         }
-        const headPathIndex = this.centipedePath.length - 1
-        this.segmentDistance = this.centipedePath[headPathIndex].distance -
-            this.centipedePath[headPathIndex - this.segmentSpacing].distance
     }
 
     update(time, delta) {
@@ -207,21 +231,43 @@ class Play extends Phaser.Scene {
     updateCentipede(delta) {
         const dt = delta / 1000
 
-        //move along a shrinking spiral
-        this.spiralAngle += this.spiralSpeed * dt
-        this.spiralRadius -= this.spiralShrinkSpeed * dt
+        let headX
+        let headY
 
-        //stop shrinking at the center
-        this.spiralRadius = Math.max(0, this.spiralRadius)
+        if (this.isEntering) {
 
-        const centerX = width / 2
-        const centerY = height / 2
+            //move from the right side of the screen
+            this.entryX -= this.entrySpeed * dt
 
-        const headX = centerX +
-            Math.cos(this.spiralAngle) * this.spiralRadius
+            headX = this.entryX
+            headY = this.entryY
 
-        const headY = centerY +
-            Math.sin(this.spiralAngle) * this.spiralRadius
+            //where the spiral begins
+            const spiralStartX =
+                this.spiralCenterX + this.spiralRadius
+
+            //once the head reaches the spiral, start turning
+            if (this.entryX <= spiralStartX) {
+                this.isEntering = false
+                headX = spiralStartX
+            }
+
+        } else {
+
+            //move along the shrinking spiral
+            this.spiralAngle += this.spiralSpeed * dt
+
+            this.spiralRadius -= this.spiralShrinkSpeed * dt
+
+            //stop shrinking at the center
+            this.spiralRadius = Math.max(0, this.spiralRadius)
+
+            headX = this.spiralCenterX +
+                Math.cos(this.spiralAngle) * this.spiralRadius
+
+            headY = this.spiralCenterY +
+                Math.sin(this.spiralAngle) * this.spiralRadius
+        }
 
         //move head
         this.centipede[0].setPosition(headX, headY)
