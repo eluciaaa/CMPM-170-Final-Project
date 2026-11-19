@@ -193,18 +193,17 @@ class Play extends Phaser.Scene {
         //actually calling UI
         this.physics.world.pause()
         this.createInstructionsUI()
-        this.createInstructionsUI()
     }
 
     createInstructionsUI() {
         const centerX = width / 2
         const centerY = height / 2
 
-        // Container holds all UI elements
+        // Container for the entire instructions screen
         this.instructionsUI = this.add.container(0, 0)
         this.instructionsUI.setDepth(1000)
 
-        // Dark transparent background
+        // Dark background overlay
         const overlay = this.add.rectangle(
             centerX, centerY,
             width, height,
@@ -214,102 +213,133 @@ class Play extends Phaser.Scene {
         // Main panel
         const panel = this.add.rectangle(
             centerX, centerY,
-            650, 520,
+            680, 560,
             0x241b52
         )
-
         panel.setStrokeStyle(4, 0xf59bd5)
 
-        // Title
-        const title = this.add.text(
-            centerX,
-            centerY - 210,
-            'CATTIPEDE',
-            {
+        // Helper for centered text
+        const addText = (y, message, size, color) => {
+            return this.add.text(centerX, y, message, {
                 fontFamily: 'monospace',
-                fontSize: '52px',
-                color: '#ff9ed6',
-                fontStyle: 'bold'
-            }
-        ).setOrigin(0.5)
+                fontSize: `${size}px`,
+                color: color,
+                align: 'center'
+            }).setOrigin(0.5)
+        }
+
+        // Title
+        const title = addText(
+            centerY - 230,
+            'CATTIPEDE',
+            48,
+            '#ff9ed6'
+        )
 
         // Subtitle
-        const subtitle = this.add.text(
-            centerX,
-            centerY - 150,
+        const subtitle = addText(
+            centerY - 170,
             'DEFEND THE PLANET',
-            {
-                fontFamily: 'monospace',
-                fontSize: '22px',
-                color: '#ffe39c'
-            }
-        ).setOrigin(0.5)
+            22,
+            '#ffe39c'
+        )
 
-        // Instructions
-        const instructions = this.add.text(
-            centerX,
-            centerY - 30,
-            [
-                'OBJECTIVE',
-                'Bounce the ball into the Cattipede!',
-                '',
-                'CONTROLS',
-                'Move your mouse to rotate the paddle.',
-                '',
-                'WARNING',
-                'Destroyed segments release mini-Cattipedes!',
-                'Intercept them before they hit the planet.',
-                '',
-                'One hit to the planet = GAME OVER!'
-            ],
-            {
-                fontFamily: 'monospace',
-                fontSize: '19px',
-                color: '#ffffff',
-                align: 'center',
-                lineSpacing: 8
-            }
-        ).setOrigin(0.5)
+        // Objective section
+        const objectiveTitle = addText(
+            centerY - 110,
+            'OBJECTIVE',
+            22,
+            '#ff9ed6'
+        )
+
+        const objectiveText = addText(
+            centerY - 75,
+            'Bounce the ball into the Cattipede!',
+            18,
+            '#ffffff'
+        )
+
+        // Controls section
+        const controlsTitle = addText(
+            centerY - 15,
+            'CONTROLS',
+            22,
+            '#ff9ed6'
+        )
+
+        const controlsText = addText(
+            centerY + 20,
+            'Move your mouse to rotate the paddle.',
+            18,
+            '#ffffff'
+        )
+
+        // Warning section
+        const warningTitle = addText(
+            centerY + 80,
+            'WARNING',
+            22,
+            '#ff9ed6'
+        )
+
+        const warningText = addText(
+            centerY + 120,
+            'Destroyed segments release mini-Cattipedes!\n' +
+            'Intercept them before they hit the planet.',
+            17,
+            '#ffffff'
+        )
+
+        // Game over warning
+        const gameOverText = addText(
+            centerY + 175,
+            'ONE HIT TO THE PLANET = GAME OVER!',
+            17,
+            '#ffe39c'
+        )
 
         // Start button
         const startButton = this.add.rectangle(
             centerX,
-            centerY + 200,
+            centerY + 230,
             280, 55,
             0xf59bd5
         )
 
         startButton.setInteractive({ useHandCursor: true })
 
-        const startText = this.add.text(
-            centerX,
-            centerY + 200,
+        const startText = addText(
+            centerY + 230,
             'CLICK TO START',
-            {
-                fontFamily: 'monospace',
-                fontSize: '22px',
-                color: '#241b52',
-                fontStyle: 'bold'
-            }
-        ).setOrigin(0.5)
+            22,
+            '#241b52'
+        )
 
+        // Add everything to the container
         this.instructionsUI.add([
             overlay,
             panel,
             title,
             subtitle,
-            instructions,
+            objectiveTitle,
+            objectiveText,
+            controlsTitle,
+            controlsText,
+            warningTitle,
+            warningText,
+            gameOverText,
             startButton,
             startText
         ])
 
+        // Start the game when clicked
         startButton.on('pointerdown', () => {
             this.gameStarted = true
 
-            // Resume ball physics
+            // Resume physics
             this.physics.world.resume()
 
-            // Remove the instructions screen
+            // Remove instructions UI
             this.instructionsUI.destroy()
         })
     }
