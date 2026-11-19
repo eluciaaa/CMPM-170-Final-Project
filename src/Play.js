@@ -89,7 +89,7 @@ class Play extends Phaser.Scene {
 
         this.miniSegmentCount = 4
         this.miniScale = 4
-        this.miniSpeed = 350
+        this.miniSpeed = 150
 
         // Planet collision radius (adjust to match artwork)
         this.planetRadius = 65
@@ -460,6 +460,7 @@ class Play extends Phaser.Scene {
             )
 
             segment.setScale(this.miniScale)
+            segment.setDepth(10)
             segment.setRotation(angle - Math.PI / 2)
             segment.play(animation)
 
