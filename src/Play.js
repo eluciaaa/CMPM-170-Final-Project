@@ -198,7 +198,12 @@ class Play extends Phaser.Scene {
 
         this.updateCentipede(delta)
         this.checkCentipedeCollision()
+        //move the mini centipedes:
         this.updateMiniCentipedes(delta)
+        // Check if ball or paddle hits a mini-centipede
+        this.checkMiniBallCollision()
+        this.checkMiniPaddleCollision()
+        
         this.applyBallGravity(delta)
     }
 
@@ -473,6 +478,112 @@ class Play extends Phaser.Scene {
             directionY: directionY,
             speed: this.miniSpeed
         })
+    }
+
+    //checking for mini cattipede deaths:
+    destroyMiniCentipede(index) {
+        const mini = this.miniCentipedes[index]
+
+        if (!mini) {
+            return
+        }
+
+        for (const segment of mini.segments) {
+            segment.destroy()
+        }
+
+        this.miniCentipedes.splice(index, 1)
+        this.enemyHit.play()
+    }
+    //checking for player ball collision:
+    checkMiniBallCollision() {
+        const ballRadius = this.ball.body.halfWidth
+
+        for (let i = this.miniCentipedes.length - 1; i >= 0; i--) {
+            const mini = this.miniCentipedes[i]
+
+            for (const segment of mini.segments) {
+
+                const distance = Phaser.Math.Distance.Between(
+                    this.ball.x,
+                    this.ball.y,
+                    segment.x,
+                    segment.y
+                )
+
+                const segmentRadius = Math.min(
+                    segment.displayWidth,
+                    segment.displayHeight
+                ) * 0.4
+
+                if (distance < ballRadius + segmentRadius) {
+
+                    // Destroy the mini-centipede
+                    this.destroyMiniCentipede(i)
+
+                    // Send the ball back toward the planet
+                    this.sendBallToCenter()
+
+                    break
+                }
+            }
+        }
+    }
+    //also adding it so that the player can block using paddle as well
+    checkMiniPaddleCollision() {
+        const radialX = Math.cos(this.paddleOrbitAngle)
+        const radialY = Math.sin(this.paddleOrbitAngle)
+
+        const tangentX = -radialY
+        const tangentY = radialX
+
+        const halfWidth = this.paddle.displayWidth / 2
+        const halfHeight = this.paddle.displayHeight / 2
+
+        for (let i = this.miniCentipedes.length - 1; i >= 0; i--) {
+            const mini = this.miniCentipedes[i]
+
+            for (const segment of mini.segments) {
+
+                // Position relative to paddle
+                const offsetX = segment.x - this.paddle.x
+                const offsetY = segment.y - this.paddle.y
+
+                // Convert to paddle's local coordinates
+                const localX =
+                    offsetX * tangentX + offsetY * tangentY
+
+                const localY =
+                    offsetX * radialX + offsetY * radialY
+
+                // Closest point on the paddle
+                const closestX = Phaser.Math.Clamp(
+                    localX, -halfWidth, halfWidth
+                )
+
+                const closestY = Phaser.Math.Clamp(
+                    localY, -halfHeight, halfHeight
+                )
+
+                const distance = Math.hypot(
+                    localX - closestX,
+                    localY - closestY
+                )
+
+                const segmentRadius = Math.min(
+                    segment.displayWidth,
+                    segment.displayHeight
+                ) * 0.4
+
+                if (distance < segmentRadius) {
+
+                    // Paddle intercepted the mini-centipede
+                    this.destroyMiniCentipede(i)
+
+                    break
+                }
+            }
+        }
     }
 
     //add movement towards the planet for smaller centipedes:
