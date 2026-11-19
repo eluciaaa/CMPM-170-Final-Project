@@ -95,8 +95,8 @@ class Play extends Phaser.Scene {
         //REPLACING THIS: 
         //this.miniSpeed = 150
         this.miniStartSpeed = 100
-        this.miniMaxSpeed = 450
-        this.miniAcceleration = 180
+        this.miniMaxSpeed = 600
+        this.miniAcceleration = 250
 
         // Planet collision radius (adjust to match artwork)
         this.planetRadius = 65
