@@ -254,7 +254,7 @@ class Play extends Phaser.Scene {
 
         const objectiveText = addText(
             centerY - 75,
-            'Bounce the ball into the Cattipede!',
+            'Bounce the ball into the Cattipede',
             18,
             '#ffffff'
         )
@@ -285,7 +285,7 @@ class Play extends Phaser.Scene {
         const warningText = addText(
             centerY + 120,
             'Destroyed segments release mini-Cattipedes!\n' +
-            'Intercept them before they hit the planet.',
+            'Block them before they reach and destroy the planet.',
             17,
             '#ffffff'
         )
