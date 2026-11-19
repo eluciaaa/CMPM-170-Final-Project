@@ -28,6 +28,9 @@ class Play extends Phaser.Scene {
     }
 
     create() {
+        //adding UI design:
+        // Start with instructions visible
+        this.gameStarted = false
         this.bgm = this.sound.add('technoloop', {
             volume: 1,
             loop: true
@@ -89,7 +92,11 @@ class Play extends Phaser.Scene {
 
         this.miniSegmentCount = 4
         this.miniScale = 4
-        this.miniSpeed = 150
+        //REPLACING THIS: 
+        //this.miniSpeed = 150
+        this.miniStartSpeed = 100
+        this.miniMaxSpeed = 450
+        this.miniAcceleration = 180
 
         // Planet collision radius (adjust to match artwork)
         this.planetRadius = 65
@@ -182,9 +189,138 @@ class Play extends Phaser.Scene {
         const headPathIndex = this.centipedePath.length - 1
         this.segmentDistance = this.centipedePath[headPathIndex].distance -
             this.centipedePath[headPathIndex - this.segmentSpacing].distance
+
+        //actually calling UI
+        this.physics.world.pause()
+        this.createInstructionsUI()
+        this.createInstructionsUI()
     }
 
+    createInstructionsUI() {
+        const centerX = width / 2
+        const centerY = height / 2
+
+        // Container holds all UI elements
+        this.instructionsUI = this.add.container(0, 0)
+        this.instructionsUI.setDepth(1000)
+
+        // Dark transparent background
+        const overlay = this.add.rectangle(
+            centerX, centerY,
+            width, height,
+            0x0d0929, 0.85
+        )
+
+        // Main panel
+        const panel = this.add.rectangle(
+            centerX, centerY,
+            650, 520,
+            0x241b52
+        )
+
+        panel.setStrokeStyle(4, 0xf59bd5)
+
+        // Title
+        const title = this.add.text(
+            centerX,
+            centerY - 210,
+            'CATTIPEDE',
+            {
+                fontFamily: 'monospace',
+                fontSize: '52px',
+                color: '#ff9ed6',
+                fontStyle: 'bold'
+            }
+        ).setOrigin(0.5)
+
+        // Subtitle
+        const subtitle = this.add.text(
+            centerX,
+            centerY - 150,
+            'DEFEND THE PLANET',
+            {
+                fontFamily: 'monospace',
+                fontSize: '22px',
+                color: '#ffe39c'
+            }
+        ).setOrigin(0.5)
+
+        // Instructions
+        const instructions = this.add.text(
+            centerX,
+            centerY - 30,
+            [
+                'OBJECTIVE',
+                'Bounce the ball into the Cattipede!',
+                '',
+                'CONTROLS',
+                'Move your mouse to rotate the paddle.',
+                '',
+                'WARNING',
+                'Destroyed segments release mini-Cattipedes!',
+                'Intercept them before they hit the planet.',
+                '',
+                'One hit to the planet = GAME OVER!'
+            ],
+            {
+                fontFamily: 'monospace',
+                fontSize: '19px',
+                color: '#ffffff',
+                align: 'center',
+                lineSpacing: 8
+            }
+        ).setOrigin(0.5)
+
+        // Start button
+        const startButton = this.add.rectangle(
+            centerX,
+            centerY + 200,
+            280, 55,
+            0xf59bd5
+        )
+
+        startButton.setInteractive({ useHandCursor: true })
+
+        const startText = this.add.text(
+            centerX,
+            centerY + 200,
+            'CLICK TO START',
+            {
+                fontFamily: 'monospace',
+                fontSize: '22px',
+                color: '#241b52',
+                fontStyle: 'bold'
+            }
+        ).setOrigin(0.5)
+
+        this.instructionsUI.add([
+            overlay,
+            panel,
+            title,
+            subtitle,
+            instructions,
+            startButton,
+            startText
+        ])
+
+        startButton.on('pointerdown', () => {
+            this.gameStarted = true
+
+            // Resume ball physics
+            this.physics.world.resume()
+
+            // Remove the instructions screen
+            this.instructionsUI.destroy()
+        })
+    }
+
+
+
     update(time, delta) {
+        //need to make sure player cant start game until click UI
+        if (!this.gameStarted) {
+            return
+        }
         this.paddleOrbitAngle = Math.atan2(
             this.input.activePointer.y - height / 2,
             this.input.activePointer.x - width / 2
@@ -203,7 +339,7 @@ class Play extends Phaser.Scene {
         // Check if ball or paddle hits a mini-centipede
         this.checkMiniBallCollision()
         this.checkMiniPaddleCollision()
-        
+
         this.applyBallGravity(delta)
     }
 
@@ -476,7 +612,7 @@ class Play extends Phaser.Scene {
             segments: segments,
             directionX: directionX,
             directionY: directionY,
-            speed: this.miniSpeed
+            speed: this.miniStartSpeed
         })
     }
 
@@ -594,6 +730,11 @@ class Play extends Phaser.Scene {
 
         for (let i = this.miniCentipedes.length - 1; i >= 0; i--) {
             const mini = this.miniCentipedes[i]
+            // Accelerate toward the planet
+            mini.speed = Math.min(
+                mini.speed + this.miniAcceleration * dt,
+                this.miniMaxSpeed
+            )
 
             // Move all segments toward the planet
             for (const segment of mini.segments) {
