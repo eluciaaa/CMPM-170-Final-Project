@@ -83,6 +83,17 @@ class Play extends Phaser.Scene {
         this.segmentCount = 100
         this.segmentSpacing = 62
 
+        //adding smaller centipede mechanic:
+        // Mini-centipedes created when a segment is destroyed
+        this.miniCentipedes = []
+
+        this.miniSegmentCount = 4
+        this.miniScale = 4
+        this.miniSpeed = 350
+
+        // Planet collision radius (adjust to match artwork)
+        this.planetRadius = 65
+
         //animations
         this.anims.create({
             key: 'centipedeHeadAnim',
@@ -187,6 +198,7 @@ class Play extends Phaser.Scene {
 
         this.updateCentipede(delta)
         this.checkCentipedeCollision()
+        this.updateMiniCentipedes(delta)
         this.applyBallGravity(delta)
     }
 
@@ -371,10 +383,16 @@ class Play extends Phaser.Scene {
 
                 const hitPathIndex = segment.pathIndex
 
+                // Save the destroyed segment's position
+                const spawnX = segment.x
+                const spawnY = segment.y
+
                 //remove the segment struck by the ball
                 this.centipede.splice(this.centipede.indexOf(segment), 1)
                 segment.destroy()
                 this.refreshCentipedeEndAnimations()
+
+                //spawn mini centipede going towards planet
 
                 //animate segments to fill the gap
                 for (const remainingSegment of this.centipede) {
@@ -404,6 +422,92 @@ class Play extends Phaser.Scene {
                 segment.currentAnimationKey = animation
             }
         })
+    }
+
+    //for smaller centipedes:
+    spawnMiniCentipede(x, y) {
+        const centerX = width / 2
+        const centerY = height / 2
+
+        // Direction toward the planet
+        const angle = Phaser.Math.Angle.Between(
+            x, y, centerX, centerY
+        )
+
+        const directionX = Math.cos(angle)
+        const directionY = Math.sin(angle)
+
+        const segments = []
+        const spacing = 18
+
+        for (let i = 0; i < this.miniSegmentCount; i++) {
+            let texture = 'centipedeBody'
+            let animation = 'centipedeBodyAnim'
+
+            if (i === 0) {
+                texture = 'centipedeHead'
+                animation = 'centipedeHeadAnim'
+            } else if (i === this.miniSegmentCount - 1) {
+                texture = 'centipedeTail'
+                animation = 'centipedeTailAnim'
+            }
+
+            const segment = this.add.sprite(
+                x - directionX * spacing * i,
+                y - directionY * spacing * i,
+                texture
+            )
+
+            segment.setScale(this.miniScale)
+            segment.setRotation(angle - Math.PI / 2)
+            segment.play(animation)
+
+            segments.push(segment)
+        }
+
+        this.miniCentipedes.push({
+            segments: segments,
+            directionX: directionX,
+            directionY: directionY,
+            speed: this.miniSpeed
+        })
+    }
+
+    //add movement towards the planet for smaller centipedes:
+    updateMiniCentipedes(delta) {
+        const dt = delta / 1000
+        const centerX = width / 2
+        const centerY = height / 2
+
+        for (let i = this.miniCentipedes.length - 1; i >= 0; i--) {
+            const mini = this.miniCentipedes[i]
+
+            // Move all segments toward the planet
+            for (const segment of mini.segments) {
+                segment.x += mini.directionX * mini.speed * dt
+                segment.y += mini.directionY * mini.speed * dt
+            }
+
+            const head = mini.segments[0]
+
+            // Check if head reaches planet
+            const distance = Phaser.Math.Distance.Between(
+                head.x, head.y, centerX, centerY
+            )
+
+            if (distance <= this.planetRadius) {
+                this.miniCentipedes.splice(i, 1)
+
+                for (const segment of mini.segments) {
+                    segment.destroy()
+                }
+
+                this.gameOver.play()
+                console.log('Planet destroyed!')
+
+                // We'll add the actual game-over screen later
+            }
+        }
     }
 
     getCentipedePathPosition(targetDistance) {
