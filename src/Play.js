@@ -393,6 +393,7 @@ class Play extends Phaser.Scene {
                 this.refreshCentipedeEndAnimations()
 
                 //spawn mini centipede going towards planet
+                this.spawnMiniCentipede(spawnX, spawnY)
 
                 //animate segments to fill the gap
                 for (const remainingSegment of this.centipede) {
