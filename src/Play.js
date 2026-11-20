@@ -90,7 +90,7 @@ class Play extends Phaser.Scene {
         // Mini-centipedes created when a segment is destroyed
         this.miniCentipedes = []
 
-        this.miniSegmentCount = 4
+        this.miniSegmentCount = 2
         this.miniScale = 4
         //REPLACING THIS: 
         //this.miniSpeed = 150
@@ -610,7 +610,7 @@ class Play extends Phaser.Scene {
         const directionY = Math.sin(angle)
 
         const segments = []
-        const spacing = 18
+        const spacing = 32 * this.miniScale * 0.7
 
         for (let i = 0; i < this.miniSegmentCount; i++) {
             let texture = 'centipedeBody'
@@ -899,13 +899,23 @@ class Play extends Phaser.Scene {
             const position = this.getCentipedePathPosition(targetDistance)
 
             segment.setPosition(position.x, position.y)
-            if (segment.pathIndex === 0) {
+            if (i === 0) {
+                const directionDistance = Math.min(
+                    1,
+                    headPathPosition.distance - targetDistance
+                )
+                const directionStart = directionDistance > 0
+                    ? position
+                    : previousHeadPosition
+                const directionEnd = directionDistance > 0
+                    ? this.getCentipedePathPosition(targetDistance + directionDistance)
+                    : headPathPosition
                 segment.setRotation(
                     Phaser.Math.Angle.Between(
-                        previousHeadPosition.x,
-                        previousHeadPosition.y,
-                        headX,
-                        headY
+                        directionStart.x,
+                        directionStart.y,
+                        directionEnd.x,
+                        directionEnd.y
                     ) - Math.PI / 2
                 )
             } else if (i > 0) {
