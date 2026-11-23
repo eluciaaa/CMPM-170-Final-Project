@@ -7,7 +7,7 @@ class Play extends Phaser.Scene {
         //image assets
         this.load.path = './assets/'
         this.load.image('ball', 'ball.png')
-        this.load.image('paddle', 'testpaddle.png')
+        this.load.image('paddle', 'curved_paddle.png')
         this.load.image('bg', 'capstone bg.png')
 
         //audio assets
@@ -77,9 +77,9 @@ class Play extends Phaser.Scene {
             }
         })
 
-        this.paddle = this.add.sprite(this.input.activePointer.x, height - 30, 'paddle').setScale(3)
+        this.paddle = this.add.sprite(this.input.activePointer.x, height - 30, 'paddle').setScale(5)
         this.paddleOrbitAngle = 0
-        this.paddleOrbitRadius = Math.min(width, height) * 0.15
+        this.paddleOrbitRadius = Math.min(width, height) * 0.16
 
         //centipede settings, so we can change along way
         this.centipede = []
@@ -795,6 +795,15 @@ class Play extends Phaser.Scene {
     }
 
     getCentipedePathPosition(targetDistance) {
+        if (this.centipedePath.length === 0) {
+            return { x: width / 2, y: height / 2 }
+        }
+
+        // Never extrapolate a segment beyond the newest or oldest stored trail point.
+        const oldestDistance = this.centipedePath[0].distance
+        const newestDistance = this.centipedePath[this.centipedePath.length - 1].distance
+        targetDistance = Phaser.Math.Clamp(targetDistance, oldestDistance, newestDistance)
+
         let low = 0
         let high = this.centipedePath.length - 1
 
@@ -828,9 +837,24 @@ class Play extends Phaser.Scene {
         const dt = delta / 1000
 
         const previousRadius = this.spiralRadius
-        //loop near center, then travel inward and stop at the center
+        //loop near center, then travel inward while continuing to advance the angle
         if (this.spiralHeadingToCenter) {
-            this.spiralRadius = Math.max(0, previousRadius - this.spiralTravelSpeed * dt)
+            this.spiralRadius = Math.max(
+                this.minimumSpiralRadius * 0.25,
+                previousRadius - this.spiralTravelSpeed * dt
+            )
+
+            const averageRadius = (previousRadius + this.spiralRadius) / 2
+            const radialSpeed = dt > 0
+                ? (previousRadius - this.spiralRadius) / dt
+                : 0
+            const tangentialSpeed = Math.sqrt(Math.max(
+                0,
+                this.spiralTravelSpeed ** 2 - radialSpeed ** 2
+            ))
+            if (averageRadius > 0) {
+                this.spiralAngle += tangentialSpeed * dt / averageRadius
+            }
         } else {
             this.spiralRadius = Math.max(
                 this.minimumSpiralRadius,
