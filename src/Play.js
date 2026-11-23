@@ -439,7 +439,7 @@ class Play extends Phaser.Scene {
         //play game over
         this.gameOver.play()
         //Restart screen
-        this.createGameOverUI
+        this.createGameOverUI()
     }
 
     //gameover UI
