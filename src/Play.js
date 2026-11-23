@@ -36,6 +36,16 @@ class Play extends Phaser.Scene {
             loop: true
         })
         this.bgm.play()
+        //after game restarts, clean music up so it doesn't glitch and overlap-
+        // Clean up sounds when the scene restarts
+        this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+            this.bgm.destroy()
+            this.paddleHit.destroy()
+            this.enemyDeath.destroy()
+            this.enemyHit.destroy()
+            this.gameOver.destroy()
+            this.powerUp.destroy()
+        })
 
         //setting up other in game sounds
         this.paddleHit = this.sound.add('paddleHit', {
@@ -202,6 +212,14 @@ class Play extends Phaser.Scene {
         //actually calling UI
         this.physics.world.pause()
         this.createInstructionsUI()
+
+        //temporarily add this to test game over:
+        // TEMPORARY: Press G to test Game Over
+        this.input.keyboard.on('keydown-G', () => {
+            if (this.gameStarted && !this.gamePaused) {
+                this.pauseAtPlanet()
+            }
+        })
     }
 
     createInstructionsUI() {
@@ -413,11 +431,122 @@ class Play extends Phaser.Scene {
         if (this.gamePaused) {
             return
         }
-
+        //stops the gameplay
         this.gamePaused = true
         this.physics.world.pause()
+        //stop music
+        this.bgm.stop()
+        //play game over
         this.gameOver.play()
+        //Restart screen
+        this.createGameOverUI
     }
+
+    //gameover UI
+
+    createGameOverUI() {
+        const centerX = width / 2
+        const centerY = height / 2
+
+        // Container for the game over screen
+        this.gameOverUI = this.add.container(0, 0)
+        this.gameOverUI.setDepth(2000)
+
+        // Dark overlay over the gameplay
+        const overlay = this.add.rectangle(
+            centerX, centerY,
+            width, height,
+            0x0d0929, 0.85
+        )
+
+        // Main panel
+        const panel = this.add.rectangle(
+            centerX, centerY,
+            680, 460,
+            0x241b52
+        )
+        panel.setStrokeStyle(4, 0xf59bd5)
+
+        // Helper for centered text
+        const addText = (y, message, size, color) => {
+            return this.add.text(centerX, y, message, {
+                fontFamily: 'monospace',
+                fontSize: `${size}px`,
+                color: color,
+                align: 'center'
+            }).setOrigin(0.5)
+        }
+
+        // Game over title
+        const title = addText(
+            centerY - 160,
+            'GAME OVER',
+            52,
+            '#ff9ed6'
+        )
+
+        // Subtitle
+        const subtitle = addText(
+            centerY - 95,
+            'THE PLANET HAS FALLEN',
+            24,
+            '#ffe39c'
+        )
+
+        // Explanation
+        const message = addText(
+            centerY - 15,
+            'The Cattipedes reached the planet!\n' +
+            'Your defense has failed.',
+            20,
+            '#ffffff'
+        )
+
+        message.setLineSpacing(12)
+
+        // Encouragement
+        const retryText = addText(
+            centerY + 75,
+            'Protect the planet. Try again!',
+            18,
+            '#ffe39c'
+        )
+
+        // Restart button
+        const restartButton = this.add.rectangle(
+            centerX,
+            centerY + 155,
+            280, 60,
+            0xf59bd5
+        )
+
+        restartButton.setInteractive({ useHandCursor: true })
+
+        const restartText = addText(
+            centerY + 155,
+            'PLAY AGAIN',
+            24,
+            '#241b52'
+        )
+
+        // Add everything to the UI container
+        this.gameOverUI.add([
+            overlay,
+            panel,
+            title,
+            subtitle,
+            message,
+            retryText,
+            restartButton,
+            restartText
+        ])
+
+        // Restart the game when clicked
+        restartButton.on('pointerdown', () => {
+            this.scene.restart()
+        })
+    }
+
 
     applyBallGravity(delta) {
         //gravity only curves the ball on its trip back from a non-paddle hit
