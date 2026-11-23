@@ -15,7 +15,7 @@ class Play extends Phaser.Scene {
         this.load.audio('paddleHit', 'ball sfx.wav') //by michorvath on freesound
         this.load.audio('cattDeath', 'caterpillar fully dying sfx.mp3') //by quavosh on freesound
         this.load.audio('cattHit', 'caterpillar hit by ball sfx.wav') // by stumpbutt on freesound
-        this.load.audio('gameOver', 'game over sfx.wav') // by hotpin7 on freesound
+        this.load.audio('gameOver', 'game over sfx.wav') //by hotpin7 on freesound
         this.load.audio('powerUpPickup', 'pick up powerup sfx.wav') //by LilMati on freesound
 
         //Cattipede
@@ -29,7 +29,7 @@ class Play extends Phaser.Scene {
 
     create() {
         //adding UI design:
-        // Start with instructions visible
+        //start with instructions visible
         this.gameStarted = false
         this.bgm = this.sound.add('technoloop', {
             volume: 1,
@@ -60,6 +60,20 @@ class Play extends Phaser.Scene {
         })
 
         this.bg = this.add.image(0, 0, 'bg').setOrigin(0).setDisplaySize(width, height)
+        this.warningZoneRadius = 300
+        this.warningZone = this.add.circle(width / 2, height / 2, this.warningZoneRadius, 0xff9ed6, 0.12)
+        this.warningZone.setStrokeStyle(4, 0xff9ed6, 0.8)
+        this.warningZone.setDepth(0)
+        this.warningZone.setAlpha(0)
+
+        this.gamePaused = false
+
+        this.planetRadius = 115
+        this.planet = this.add.circle(width / 2, height / 2, this.planetRadius, 0x6d4b9e)
+        this.planet.setStrokeStyle(6, 0xf59bd5)
+        this.planet.setDepth(1)
+        this.planet.setAlpha(0)
+
         this.ball = this.physics.add.sprite(width / 2, 0, 'ball')
         this.ball.body.setCircle(this.ball.width / 2)
         this.ball.setY(this.ball.height / 2)
@@ -87,19 +101,14 @@ class Play extends Phaser.Scene {
         this.segmentSpacing = 62
 
         //adding smaller centipede mechanic:
-        // Mini-centipedes created when a segment is destroyed
+        //mini-centipedes created when a segment is destroyed
         this.miniCentipedes = []
 
         this.miniSegmentCount = 2
         this.miniScale = 4
-        //REPLACING THIS: 
-        //this.miniSpeed = 150
         this.miniStartSpeed = 100
         this.miniMaxSpeed = 600
         this.miniAcceleration = 250
-
-        // Planet collision radius (adjust to match artwork)
-        this.planetRadius = 65
 
         //animations
         this.anims.create({
@@ -199,18 +208,18 @@ class Play extends Phaser.Scene {
         const centerX = width / 2
         const centerY = height / 2
 
-        // Container for the entire instructions screen
+        //container for the entire instructions screen
         this.instructionsUI = this.add.container(0, 0)
         this.instructionsUI.setDepth(1000)
 
-        // Dark background overlay
+        //dark background overlay
         const overlay = this.add.rectangle(
             centerX, centerY,
             width, height,
             0x0d0929, 0.85
         )
 
-        // Main panel
+        //main panel
         const panel = this.add.rectangle(
             centerX, centerY,
             680, 560,
@@ -218,7 +227,7 @@ class Play extends Phaser.Scene {
         )
         panel.setStrokeStyle(4, 0xf59bd5)
 
-        // Helper for centered text
+        //helper for centered text
         const addText = (y, message, size, color) => {
             return this.add.text(centerX, y, message, {
                 fontFamily: 'monospace',
@@ -228,7 +237,7 @@ class Play extends Phaser.Scene {
             }).setOrigin(0.5)
         }
 
-        // Title
+        //title
         const title = addText(
             centerY - 230,
             'CATTIPEDE',
@@ -236,7 +245,7 @@ class Play extends Phaser.Scene {
             '#ff9ed6'
         )
 
-        // Subtitle
+        //subtitle
         const subtitle = addText(
             centerY - 170,
             'DEFEND THE PLANET',
@@ -244,7 +253,7 @@ class Play extends Phaser.Scene {
             '#ffe39c'
         )
 
-        // Objective section
+        //objective section
         const objectiveTitle = addText(
             centerY - 110,
             'OBJECTIVE',
@@ -259,7 +268,7 @@ class Play extends Phaser.Scene {
             '#ffffff'
         )
 
-        // Controls section
+        //controls section
         const controlsTitle = addText(
             centerY - 15,
             'CONTROLS',
@@ -274,7 +283,7 @@ class Play extends Phaser.Scene {
             '#ffffff'
         )
 
-        // Warning section
+        //warning section
         const warningTitle = addText(
             centerY + 80,
             'WARNING',
@@ -290,7 +299,7 @@ class Play extends Phaser.Scene {
             '#ffffff'
         )
 
-        // Game over warning
+        //game over warning
         const gameOverText = addText(
             centerY + 175,
             'ONE HIT TO THE PLANET = GAME OVER!',
@@ -298,7 +307,7 @@ class Play extends Phaser.Scene {
             '#ffe39c'
         )
 
-        // Start button
+        //start button
         const startButton = this.add.rectangle(
             centerX,
             centerY + 230,
@@ -315,7 +324,7 @@ class Play extends Phaser.Scene {
             '#241b52'
         )
 
-        // Add everything to the container
+        //add everything to the container
         this.instructionsUI.add([
             overlay,
             panel,
@@ -332,14 +341,14 @@ class Play extends Phaser.Scene {
             startText
         ])
 
-        // Start the game when clicked
+        //start the game when clicked
         startButton.on('pointerdown', () => {
             this.gameStarted = true
 
-            // Resume physics
+            //resume physics
             this.physics.world.resume()
 
-            // Remove instructions UI
+            //remove instructions UI
             this.instructionsUI.destroy()
         })
     }
@@ -347,8 +356,7 @@ class Play extends Phaser.Scene {
 
 
     update(time, delta) {
-        //need to make sure player cant start game until click UI
-        if (!this.gameStarted) {
+        if (!this.gameStarted || this.gamePaused) {
             return
         }
         this.paddleOrbitAngle = Math.atan2(
@@ -364,13 +372,51 @@ class Play extends Phaser.Scene {
 
         this.updateCentipede(delta)
         this.checkCentipedeCollision()
-        //move the mini centipedes:
         this.updateMiniCentipedes(delta)
-        // Check if ball or paddle hits a mini-centipede
         this.checkMiniBallCollision()
         this.checkMiniPaddleCollision()
+        this.checkZoneContacts()
+    }
 
-        this.applyBallGravity(delta)
+    checkZoneContacts() {
+        const centerX = width / 2
+        const centerY = height / 2
+
+        const checkSegment = (segment) => {
+            const segmentRadius = Math.min(segment.displayWidth, segment.displayHeight) * 0.5
+            const distance = Phaser.Math.Distance.Between(segment.x, segment.y, centerX, centerY)
+
+            if (distance <= this.planetRadius + segmentRadius) {
+                this.pauseAtPlanet()
+                return true
+            }
+
+            return false
+        }
+
+        for (const segment of this.centipede) {
+            if (checkSegment(segment)) {
+                return
+            }
+        }
+
+        for (const mini of this.miniCentipedes) {
+            for (const segment of mini.segments) {
+                if (checkSegment(segment)) {
+                    return
+                }
+            }
+        }
+    }
+
+    pauseAtPlanet() {
+        if (this.gamePaused) {
+            return
+        }
+
+        this.gamePaused = true
+        this.physics.world.pause()
+        this.gameOver.play()
     }
 
     applyBallGravity(delta) {
@@ -554,7 +600,7 @@ class Play extends Phaser.Scene {
 
                 const hitPathIndex = segment.pathIndex
 
-                // Save the destroyed segment's position
+                //save the destroyed segment's position
                 const spawnX = segment.x
                 const spawnY = segment.y
 
@@ -601,7 +647,7 @@ class Play extends Phaser.Scene {
         const centerX = width / 2
         const centerY = height / 2
 
-        // Direction toward the planet
+        //direction toward the planet
         const angle = Phaser.Math.Angle.Between(
             x, y, centerX, centerY
         )
@@ -684,10 +730,10 @@ class Play extends Phaser.Scene {
 
                 if (distance < ballRadius + segmentRadius) {
 
-                    // Destroy the mini-centipede
+                    //destroy the mini-centipede
                     this.destroyMiniCentipede(i)
 
-                    // Send the ball back toward the planet
+                    //send the ball back toward the planet
                     this.sendBallToCenter()
 
                     break
@@ -786,10 +832,7 @@ class Play extends Phaser.Scene {
                     segment.destroy()
                 }
 
-                this.gameOver.play()
-                console.log('Planet destroyed!')
-
-                // We'll add the actual game-over screen later
+                this.pauseAtPlanet()
             }
         }
     }
@@ -799,7 +842,7 @@ class Play extends Phaser.Scene {
             return { x: width / 2, y: height / 2 }
         }
 
-        // Never extrapolate a segment beyond the newest or oldest stored trail point.
+        //never extrapolate a segment beyond the newest or oldest stored trail point
         const oldestDistance = this.centipedePath[0].distance
         const newestDistance = this.centipedePath[this.centipedePath.length - 1].distance
         targetDistance = Phaser.Math.Clamp(targetDistance, oldestDistance, newestDistance)
