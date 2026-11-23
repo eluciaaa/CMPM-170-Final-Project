@@ -488,7 +488,7 @@ class Play extends Phaser.Scene {
         // Subtitle
         const subtitle = addText(
             centerY - 95,
-            'THE PLANET HAS FALLEN',
+            'THE PLANET HAS BEEN DESTROYED!!!',
             24,
             '#ffe39c'
         )
@@ -496,7 +496,7 @@ class Play extends Phaser.Scene {
         // Explanation
         const message = addText(
             centerY - 15,
-            'The Cattipedes reached the planet!\n' +
+            'The Cattipedes ate the planet!\n' +
             'Your defense has failed.',
             20,
             '#ffffff'
