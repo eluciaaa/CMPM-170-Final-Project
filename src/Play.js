@@ -107,7 +107,7 @@ class Play extends Phaser.Scene {
 
         //centipede settings, so we can change along way
         this.centipede = []
-        this.segmentCount = 100
+        this.segmentCount = 3 //change to test UI
         this.segmentSpacing = 62
 
         //adding smaller centipede mechanic:
@@ -394,6 +394,9 @@ class Play extends Phaser.Scene {
         this.checkMiniBallCollision()
         this.checkMiniPaddleCollision()
         this.checkZoneContacts()
+
+        //check winning conditions
+        this.checkVictory()
     }
 
     checkZoneContacts() {
@@ -440,6 +443,31 @@ class Play extends Phaser.Scene {
         this.gameOver.play()
         //Restart screen
         this.createGameOverUI()
+    }
+
+    //checking winning conditions to implement UI
+    checkVictory() {
+        if (!this.gameStarted || this.gamePaused) {
+            return
+        }
+
+        // Check if all enemies have been destroyed
+        if (this.centipede.length === 0 &&
+            this.miniCentipedes.length === 0) {
+
+            // Stop gameplay
+            this.gamePaused = true
+            this.physics.world.pause()
+
+            // Stop background music
+            this.bgm.stop()
+
+            // Play enemy defeated sound
+            this.enemyDeath.play()
+
+            // Display victory screen
+            this.createVictoryUI()
+        }
     }
 
     //gameover UI
@@ -542,6 +570,114 @@ class Play extends Phaser.Scene {
         ])
 
         // Restart the game when clicked
+        restartButton.on('pointerdown', () => {
+            this.scene.restart()
+        })
+    }
+
+    //create winning victory UI
+
+    createVictoryUI() {
+        const centerX = width / 2
+        const centerY = height / 2
+
+        // Container for victory screen
+        this.victoryUI = this.add.container(0, 0)
+        this.victoryUI.setDepth(2000)
+
+        // Dark background overlay
+        const overlay = this.add.rectangle(
+            centerX, centerY,
+            width, height,
+            0x0d0929, 0.85
+        )
+
+        // Main panel
+        const panel = this.add.rectangle(
+            centerX, centerY,
+            800, 520,
+            0x241b52
+        )
+
+        panel.setStrokeStyle(4, 0xf59bd5)
+
+        // Helper for centered text
+        const addText = (y, message, size, color) => {
+            return this.add.text(centerX, y, message, {
+                fontFamily: 'monospace',
+                fontSize: `${size}px`,
+                color: color,
+                align: 'center'
+            }).setOrigin(0.5)
+        }
+
+        // Victory title
+        const title = addText(
+            centerY - 190,
+            'VICTORY!',
+            72,
+            '#ff9ed6'
+        )
+
+        // Subtitle
+        const subtitle = addText(
+            centerY - 110,
+            'THE PLANET IS SAVED',
+            32,
+            '#ffe39c'
+        )
+
+        // Victory message
+        const message = addText(
+            centerY - 15,
+            'You successfully defeated the Cattipede!\n' +
+            'All threats have been eliminated.',
+            26,
+            '#ffffff'
+        )
+
+        message.setLineSpacing(15)
+
+        // Additional message
+        const congratulations = addText(
+            centerY + 85,
+            'The galaxy thanks you!',
+            24,
+            '#ffe39c'
+        )
+
+        // Restart button
+        const restartButton = this.add.rectangle(
+            centerX,
+            centerY + 185,
+            340, 70,
+            0xf59bd5
+        )
+
+        restartButton.setInteractive({
+            useHandCursor: true
+        })
+
+        const restartText = addText(
+            centerY + 185,
+            'PLAY AGAIN',
+            30,
+            '#241b52'
+        )
+
+        // Add everything to container
+        this.victoryUI.add([
+            overlay,
+            panel,
+            title,
+            subtitle,
+            message,
+            congratulations,
+            restartButton,
+            restartText
+        ])
+
+        // Restart game
         restartButton.on('pointerdown', () => {
             this.scene.restart()
         })
