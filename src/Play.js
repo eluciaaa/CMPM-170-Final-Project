@@ -107,7 +107,7 @@ class Play extends Phaser.Scene {
 
         //centipede settings, so we can change along way
         this.centipede = []
-        this.segmentCount = 3 //change to test UI
+        this.segmentCount = 70 //change to test UI
         this.segmentSpacing = 62
 
         //adding smaller centipede mechanic:
@@ -240,7 +240,7 @@ class Play extends Phaser.Scene {
         //main panel
         const panel = this.add.rectangle(
             centerX, centerY,
-            680, 560,
+            1000, 720,
             0x241b52
         )
         panel.setStrokeStyle(4, 0xf59bd5)
@@ -257,47 +257,47 @@ class Play extends Phaser.Scene {
 
         //title
         const title = addText(
-            centerY - 230,
+            centerY - 290,
             'CATTIPEDE',
-            48,
+            80,
             '#ff9ed6'
         )
 
         //subtitle
         const subtitle = addText(
-            centerY - 170,
+            centerY - 210,
             'DEFEND THE PLANET',
-            22,
+            30,
             '#ffe39c'
         )
 
         //objective section
         const objectiveTitle = addText(
-            centerY - 110,
+            centerY - 140,
             'OBJECTIVE',
-            22,
+            28,
             '#ff9ed6'
         )
 
         const objectiveText = addText(
-            centerY - 75,
+            centerY - 95,
             'Bounce the ball into the Cattipede',
-            18,
+            24,
             '#ffffff'
         )
 
         //controls section
         const controlsTitle = addText(
-            centerY - 15,
+            centerY - 30,
             'CONTROLS',
-            22,
+            28,
             '#ff9ed6'
         )
 
         const controlsText = addText(
-            centerY + 20,
+            centerY + 15,
             'Move your mouse to rotate the paddle.',
-            18,
+            24,
             '#ffffff'
         )
 
@@ -305,30 +305,30 @@ class Play extends Phaser.Scene {
         const warningTitle = addText(
             centerY + 80,
             'WARNING',
-            22,
+            28,
             '#ff9ed6'
         )
 
         const warningText = addText(
-            centerY + 120,
+            centerY + 135,
             'Destroyed segments release mini-Cattipedes!\n' +
             'Block them before they reach and destroy the planet.',
-            17,
+            22,
             '#ffffff'
         )
 
         //game over warning
         const gameOverText = addText(
-            centerY + 175,
+            centerY + 215,
             'ONE HIT TO THE PLANET = GAME OVER!',
-            17,
+            22,
             '#ffe39c'
         )
 
         //start button
         const startButton = this.add.rectangle(
             centerX,
-            centerY + 230,
+            centerY + 290,
             280, 55,
             0xf59bd5
         )
@@ -338,7 +338,7 @@ class Play extends Phaser.Scene {
         const startText = addText(
             centerY + 230,
             'CLICK TO START',
-            22,
+            28,
             '#241b52'
         )
 
