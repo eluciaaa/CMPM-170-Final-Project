@@ -336,7 +336,7 @@ class Play extends Phaser.Scene {
         startButton.setInteractive({ useHandCursor: true })
 
         const startText = addText(
-            centerY + 290
+            centerY + 290,
             'CLICK TO START',
             28,
             '#241b52'
