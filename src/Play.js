@@ -329,18 +329,19 @@ class Play extends Phaser.Scene {
         const startButton = this.add.rectangle(
             centerX,
             centerY + 290,
-            280, 55,
+            340, 65,
             0xf59bd5
         )
 
         startButton.setInteractive({ useHandCursor: true })
 
         const startText = addText(
-            centerY + 215,
+            centerY + 290
             'CLICK TO START',
             28,
             '#241b52'
         )
+        startText.setFontStyle('bold')
 
         //add everything to the container
         this.instructionsUI.add([
