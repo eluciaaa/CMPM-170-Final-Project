@@ -992,11 +992,30 @@ class Play extends Phaser.Scene {
             segments.push(segment)
         }
 
+        const extents = segments.reduce((bounds, segment) => ({
+            left: Math.min(bounds.left, segment.x - segment.displayWidth / 2),
+            right: Math.max(bounds.right, segment.x + segment.displayWidth / 2),
+            top: Math.min(bounds.top, segment.y - segment.displayHeight / 2),
+            bottom: Math.max(bounds.bottom, segment.y + segment.displayHeight / 2)
+        }), {
+            left: Infinity,
+            right: -Infinity,
+            top: Infinity,
+            bottom: -Infinity
+        })
+        const shiftX = Phaser.Math.Clamp(0, -extents.left, width - extents.right)
+        const shiftY = Phaser.Math.Clamp(0, -extents.top, height - extents.bottom)
+        for (const segment of segments) {
+            segment.x += shiftX
+            segment.y += shiftY
+        }
+
         this.miniCentipedes.push({
             segments: segments,
             directionX: directionX,
             directionY: directionY,
-            speed: this.miniStartSpeed
+            speed: this.miniStartSpeed,
+            ballCollisionArmed: false
         })
     }
 
@@ -1021,6 +1040,29 @@ class Play extends Phaser.Scene {
 
         for (let i = this.miniCentipedes.length - 1; i >= 0; i--) {
             const mini = this.miniCentipedes[i]
+
+            if (!mini.ballCollisionArmed) {
+                const ballClearedMini = mini.segments.every(segment => {
+                    const distance = Phaser.Math.Distance.Between(
+                        this.ball.x,
+                        this.ball.y,
+                        segment.x,
+                        segment.y
+                    )
+                    const segmentRadius = Math.min(
+                        segment.displayWidth,
+                        segment.displayHeight
+                    ) * 0.4
+
+                    return distance >= ballRadius + segmentRadius + ballRadius
+                })
+
+                if (!ballClearedMini) {
+                    continue
+                }
+
+                mini.ballCollisionArmed = true
+            }
 
             for (const segment of mini.segments) {
 
@@ -1133,13 +1175,8 @@ class Play extends Phaser.Scene {
             )
 
             if (distance <= this.planetRadius) {
-                this.miniCentipedes.splice(i, 1)
-
-                for (const segment of mini.segments) {
-                    segment.destroy()
-                }
-
                 this.pauseAtPlanet()
+                break
             }
         }
     }
