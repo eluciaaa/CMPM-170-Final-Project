@@ -7,6 +7,7 @@ class Play extends Phaser.Scene {
         //image assets
         this.load.path = './assets/'
         this.load.image('ball', 'ball.png')
+        this.load.image('ballfire', 'ballfire.png')
         this.load.image('paddle', 'curved_paddle.png')
         this.load.image('bg', 'capstone bg.png')
 
@@ -87,17 +88,20 @@ class Play extends Phaser.Scene {
         this.ball = this.physics.add.sprite(width / 2, 0, 'ball')
         this.ball.body.setCircle(this.ball.width / 2)
         this.ball.setY(this.ball.height / 2)
-        this.ballSpeed = 500
-        this.ballGravity = 800
-        this.ballReturningToCenter = false
+        this.ballSpeed = 600
+        this.ballGravity = 35
+        this.ballDrag = 0.12
+        this.ballMinSpeed = 600
+        this.ballMaxSpeed = 800
+        this.ballFireSpeedMultiplier = 1.5
+        this.ballFireActive = false
+        this.ballFirePenetrations = 0
         this.ball.body.setVelocityY(this.ballSpeed)
         this.ball.body.setCollideWorldBounds(true, 1, 1, true)
         this.ball.body.setBounce(1)
-
-        //any world-edge bounce starts the ball's return toward the center
-        this.physics.world.on('worldbounds', (body) => {
+        this.physics.world.on('worldbounds', (body, up, down, left, right) => {
             if (body.gameObject === this.ball) {
-                this.sendBallToCenter()
+                this.bounceBallAtEdge(up, down, left, right)
             }
         })
 
@@ -116,8 +120,8 @@ class Play extends Phaser.Scene {
 
         this.miniSegmentCount = 2
         this.miniScale = 4
-        this.miniStartSpeed = 100
-        this.miniMaxSpeed = 600
+        this.miniStartSpeed = 250
+        this.miniMaxSpeed = 700
         this.miniAcceleration = 250
 
         //animations
@@ -147,8 +151,10 @@ class Play extends Phaser.Scene {
         this.spiralCenterLoopAngle = 0
         this.spiralHeadingToCenter = false
         this.initialSpiralRadius = this.spiralRadius
-        this.spiralSpeed = 0.15
+        this.spiralSpeed = 0.20
         this.spiralShrinkSpeed = 5
+        this.centipedeBoostDuration = 7000
+        this.centipedeElapsed = 0
         this.spiralTravelSpeed = Math.hypot(
             this.spiralRadius * this.spiralSpeed,
             this.spiralShrinkSpeed
@@ -281,7 +287,7 @@ class Play extends Phaser.Scene {
 
         const objectiveText = addText(
             centerY - 95,
-            'Bounce the ball into the Cattipede',
+            'Bounce the ball into the Cattipede \nHit the ball into the wall to power it up',
             24,
             '#ffffff'
         )
@@ -387,6 +393,7 @@ class Play extends Phaser.Scene {
             height / 2 + Math.sin(this.paddleOrbitAngle) * this.paddleOrbitRadius
         )
         this.paddle.setRotation(this.paddleOrbitAngle + Math.PI / 2)
+        this.applyBallGravity(delta)
         this.checkPaddleCollision()
 
         this.updateCentipede(delta)
@@ -686,27 +693,52 @@ class Play extends Phaser.Scene {
 
 
     applyBallGravity(delta) {
-        //gravity only curves the ball on its trip back from a non-paddle hit
-        if (!this.ballReturningToCenter) {
-            return
-        }
-
         const toCenterX = width / 2 - this.ball.x
         const toCenterY = height / 2 - this.ball.y
         const distanceToCenter = Math.hypot(toCenterX, toCenterY)
-        const gravityStep = this.ballGravity * delta / 1000
+        const timeStep = delta / 1000
         const gravityX = distanceToCenter > 0 ? toCenterX / distanceToCenter : 0
         const gravityY = distanceToCenter > 0 ? toCenterY / distanceToCenter : 0
-        let velocityX = this.ball.body.velocity.x + gravityX * gravityStep
-        let velocityY = this.ball.body.velocity.y + gravityY * gravityStep
-        const speed = Math.hypot(velocityX, velocityY)
+        const velocityX = this.ball.body.velocity.x
+        const velocityY = this.ball.body.velocity.y
+        let nextVelocityX = velocityX + (gravityX * this.ballGravity - velocityX * this.ballDrag) * timeStep
+        let nextVelocityY = velocityY + (gravityY * this.ballGravity - velocityY * this.ballDrag) * timeStep
+        const speed = Math.hypot(nextVelocityX, nextVelocityY)
+        const speedMultiplier = this.ballFireActive ? this.ballFireSpeedMultiplier : 1
+        const limitedSpeed = Phaser.Math.Clamp(
+            speed,
+            this.ballMinSpeed * speedMultiplier,
+            this.ballMaxSpeed * speedMultiplier
+        )
 
-        if (speed === 0) {
-            velocityX = gravityX
-            velocityY = distanceToCenter > 0 ? gravityY : -1
+        this.setBallVelocityAtSpeed(nextVelocityX, nextVelocityY, limitedSpeed)
+    }
+
+    bounceBallAtEdge(up, down, left, right) {
+        this.ballFireActive = true
+        this.ballFirePenetrations = 1
+        this.ball.setTexture('ballfire')
+
+        let velocityX = Phaser.Math.FloatBetween(-1, 1)
+        let velocityY = Phaser.Math.FloatBetween(-1, 1)
+
+        if (left) {
+            velocityX = Phaser.Math.FloatBetween(0.35, 1)
+        } else if (right) {
+            velocityX = Phaser.Math.FloatBetween(-1, -0.35)
         }
 
-        this.setBallVelocityAtSpeed(velocityX, velocityY, this.ballSpeed)
+        if (up) {
+            velocityY = Phaser.Math.FloatBetween(0.35, 1)
+        } else if (down) {
+            velocityY = Phaser.Math.FloatBetween(-1, -0.35)
+        }
+
+        this.setBallVelocityAtSpeed(
+            velocityX,
+            velocityY,
+            this.ballSpeed * this.ballFireSpeedMultiplier
+        )
     }
 
     setBallVelocityAtSpeed(velocityX, velocityY, speed) {
@@ -728,8 +760,19 @@ class Play extends Phaser.Scene {
             toCenterY = -1
         }
 
+        this.ballFireActive = false
+        this.ballFirePenetrations = 0
+        this.ball.setTexture('ball')
         this.setBallVelocityAtSpeed(toCenterX, toCenterY, this.ballSpeed)
-        this.ballReturningToCenter = true
+    }
+
+    handleBallSegmentHit() {
+        if (this.ballFireActive && this.ballFirePenetrations > 0) {
+            this.ballFirePenetrations--
+            return
+        }
+
+        this.sendBallToCenter()
     }
 
     checkPaddleCollision() {
@@ -796,7 +839,6 @@ class Play extends Phaser.Scene {
         const outgoingX = normalX * Math.cos(spread) + tangentX * Math.sin(spread)
         const outgoingY = normalY * Math.cos(spread) + tangentY * Math.sin(spread)
         this.setBallVelocityAtSpeed(outgoingX, outgoingY, speed)
-        this.ballReturningToCenter = false
         this.paddleHit.play()
     }
 
@@ -861,7 +903,7 @@ class Play extends Phaser.Scene {
 
             const approachSpeed = velocityX * normalX + velocityY * normalY
             if (approachSpeed < 0) {
-                this.sendBallToCenter()
+                this.handleBallSegmentHit()
                 this.enemyHit.play()
 
                 const hitPathIndex = segment.pathIndex
@@ -999,8 +1041,7 @@ class Play extends Phaser.Scene {
                     //destroy the mini-centipede
                     this.destroyMiniCentipede(i)
 
-                    //send the ball back toward the planet
-                    this.sendBallToCenter()
+                    this.handleBallSegmentHit()
 
                     break
                 }
@@ -1143,7 +1184,13 @@ class Play extends Phaser.Scene {
 
     //adding the spiraling effect: 
     updateCentipede(delta) {
-        const dt = delta / 1000
+        const boostTime = Math.min(
+            delta,
+            Math.max(0, this.centipedeBoostDuration - this.centipedeElapsed)
+        )
+        const movementDelta = delta + boostTime
+        this.centipedeElapsed += delta
+        const dt = movementDelta / 1000
 
         const previousRadius = this.spiralRadius
         //loop near center, then travel inward while continuing to advance the angle
@@ -1218,7 +1265,7 @@ class Play extends Phaser.Scene {
         for (let i = 0; i < this.centipede.length; i++) {
             const segment = this.centipede[i]
             if (segment.shiftElapsed < 1000) {
-                segment.shiftElapsed = Math.min(1000, segment.shiftElapsed + delta)
+                segment.shiftElapsed = Math.min(1000, segment.shiftElapsed + movementDelta)
                 const progress = segment.shiftElapsed / 1000
                 segment.pathIndex = Phaser.Math.Linear(
                     segment.shiftStartPathIndex,
