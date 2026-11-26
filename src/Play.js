@@ -98,9 +98,10 @@ class Play extends Phaser.Scene {
         this.ballDrag = 0.12
         this.ballMinSpeed = 600
         this.ballMaxSpeed = 800
+        //have to switch this up to make multishot work
         this.ballFireSpeedMultiplier = 1.5
-        this.ballFireActive = false
-        this.ballFirePenetrations = 0
+        this.ball.fireActive = false
+        this.ball.firePenetrations = 0
         this.ball.body.setVelocityY(this.ballSpeed)
         this.ball.body.setCollideWorldBounds(true, 1, 1, true)
         this.ball.body.setBounce(1)
@@ -114,12 +115,14 @@ class Play extends Phaser.Scene {
         this.multishotDuration = 8000
         this.multishotChance = 0.12 //12% of segments are multishot
 
+        //again keeping all logic same, but passing it onto all active balls
         this.physics.world.on('worldbounds', (body, up, down, left, right) => {
-            if (body.gameObject === this.ball) {
-                this.bounceBallAtEdge(up, down, left, right)
+            const ball = body.gameObject
+
+            if (this.balls.includes(ball)) {
+                this.bounceBallAtEdge(up, down, left, right, ball)
             }
         })
-
         this.paddle = this.add.sprite(this.input.activePointer.x, height - 30, 'paddle').setScale(5)
         this.paddleOrbitAngle = 0
         this.paddleOrbitRadius = Math.min(width, height) * 0.16
@@ -416,33 +419,54 @@ class Play extends Phaser.Scene {
             this.instructionsUI.destroy()
         })
     }
-
-
-
+    //was only updating one ball, with multishot, had to pass onto all active balls
     update(time, delta) {
         if (!this.gameStarted || this.gamePaused) {
             return
         }
+
         this.paddleOrbitAngle = Math.atan2(
             this.input.activePointer.y - height / 2,
             this.input.activePointer.x - width / 2
         )
+
         this.paddle.setPosition(
             width / 2 + Math.cos(this.paddleOrbitAngle) * this.paddleOrbitRadius,
             height / 2 + Math.sin(this.paddleOrbitAngle) * this.paddleOrbitRadius
         )
-        this.paddle.setRotation(this.paddleOrbitAngle + Math.PI / 2)
-        this.applyBallGravity(delta)
-        this.checkPaddleCollision()
 
+        this.paddle.setRotation(
+            this.paddleOrbitAngle + Math.PI / 2
+        )
+
+        //apply gravity and paddle collision to every ball
+        for (const ball of this.balls) {
+            this.applyBallGravity(delta, ball)
+            this.checkPaddleCollision(ball)
+        }
+
+        //move main Cattipede once per frame
         this.updateCentipede(delta)
-        this.checkCentipedeCollision()
+
+        //check every ball against the main Cattipede
+        for (const ball of [...this.balls]) {
+            this.checkCentipedeCollision(ball)
+        }
+
+        //move mini-Cattipedes once per frame
         this.updateMiniCentipedes(delta)
-        this.checkMiniBallCollision()
+
+        if (this.gamePaused) {
+            return
+        }
+
+        //check every ball against mini-Cattipedes
+        for (const ball of this.balls) {
+            this.checkMiniBallCollision(ball)
+        }
+
         this.checkMiniPaddleCollision()
         this.checkZoneContacts()
-
-        //check winning conditions
         this.checkVictory()
     }
 
@@ -730,33 +754,49 @@ class Play extends Phaser.Scene {
         })
     }
 
-
-    applyBallGravity(delta) {
-        const toCenterX = width / 2 - this.ball.x
-        const toCenterY = height / 2 - this.ball.y
+    //all logic is the same, just had to adjust to change the fireball for multishot
+    applyBallGravity(delta, ball = this.ball) {
+        const toCenterX = width / 2 - ball.x
+        const toCenterY = height / 2 - ball.y
         const distanceToCenter = Math.hypot(toCenterX, toCenterY)
         const timeStep = delta / 1000
+
         const gravityX = distanceToCenter > 0 ? toCenterX / distanceToCenter : 0
         const gravityY = distanceToCenter > 0 ? toCenterY / distanceToCenter : 0
-        const velocityX = this.ball.body.velocity.x
-        const velocityY = this.ball.body.velocity.y
-        let nextVelocityX = velocityX + (gravityX * this.ballGravity - velocityX * this.ballDrag) * timeStep
-        let nextVelocityY = velocityY + (gravityY * this.ballGravity - velocityY * this.ballDrag) * timeStep
+
+        const velocityX = ball.body.velocity.x
+        const velocityY = ball.body.velocity.y
+
+        let nextVelocityX = velocityX +
+            (gravityX * this.ballGravity - velocityX * this.ballDrag) * timeStep
+
+        let nextVelocityY = velocityY +
+            (gravityY * this.ballGravity - velocityY * this.ballDrag) * timeStep
+
         const speed = Math.hypot(nextVelocityX, nextVelocityY)
-        const speedMultiplier = this.ballFireActive ? this.ballFireSpeedMultiplier : 1
+
+        const speedMultiplier = ball.fireActive
+            ? this.ballFireSpeedMultiplier
+            : 1
+
         const limitedSpeed = Phaser.Math.Clamp(
             speed,
             this.ballMinSpeed * speedMultiplier,
             this.ballMaxSpeed * speedMultiplier
         )
 
-        this.setBallVelocityAtSpeed(nextVelocityX, nextVelocityY, limitedSpeed)
+        this.setBallVelocityAtSpeed(
+            nextVelocityX,
+            nextVelocityY,
+            limitedSpeed,
+            ball
+        )
     }
-
-    bounceBallAtEdge(up, down, left, right) {
-        this.ballFireActive = true
-        this.ballFirePenetrations = 1
-        this.ball.setTexture('ballfire')
+    //changed it up so all multishot balls follow logic, still uses same logic
+    bounceBallAtEdge(up, down, left, right, ball = this.ball) {
+        ball.fireActive = true
+        ball.firePenetrations = 1
+        ball.setTexture('ballfire')
 
         let velocityX = Phaser.Math.FloatBetween(-1, 1)
         let velocityY = Phaser.Math.FloatBetween(-1, 1)
@@ -776,42 +816,50 @@ class Play extends Phaser.Scene {
         this.setBallVelocityAtSpeed(
             velocityX,
             velocityY,
-            this.ballSpeed * this.ballFireSpeedMultiplier
+            this.ballSpeed * this.ballFireSpeedMultiplier,
+            ball
         )
     }
 
-    setBallVelocityAtSpeed(velocityX, velocityY, speed) {
+    setBallVelocityAtSpeed(velocityX, velocityY, speed, ball = this.ball) {
         const currentSpeed = Math.hypot(velocityX, velocityY)
         if (currentSpeed === 0) {
             return
         }
 
-        this.ball.body.setVelocity(
+        ball.body.setVelocity(
             velocityX * speed / currentSpeed,
             velocityY * speed / currentSpeed
         )
     }
 
-    sendBallToCenter() {
-        const toCenterX = width / 2 - this.ball.x
-        let toCenterY = height / 2 - this.ball.y
+    sendBallToCenter(ball = this.ball) {
+        const toCenterX = width / 2 - ball.x
+        let toCenterY = height / 2 - ball.y
+
         if (toCenterX === 0 && toCenterY === 0) {
             toCenterY = -1
         }
 
-        this.ballFireActive = false
-        this.ballFirePenetrations = 0
-        this.ball.setTexture('ball')
-        this.setBallVelocityAtSpeed(toCenterX, toCenterY, this.ballSpeed)
+        ball.fireActive = false
+        ball.firePenetrations = 0
+        ball.setTexture('ball')
+
+        this.setBallVelocityAtSpeed(
+            toCenterX,
+            toCenterY,
+            this.ballSpeed,
+            ball
+        )
     }
 
-    handleBallSegmentHit() {
-        if (this.ballFireActive && this.ballFirePenetrations > 0) {
-            this.ballFirePenetrations--
+    handleBallSegmentHit(ball = this.ball) {
+        if (ball.fireActive && ball.firePenetrations > 0) {
+            ball.firePenetrations--
             return
         }
 
-        this.sendBallToCenter()
+        this.sendBallToCenter(ball)
     }
 
     checkPaddleCollision() {
@@ -819,8 +867,8 @@ class Play extends Phaser.Scene {
         const radialY = Math.sin(this.paddleOrbitAngle)
         const tangentX = -radialY
         const tangentY = radialX
-        const ballOffsetX = this.ball.x - this.paddle.x
-        const ballOffsetY = this.ball.y - this.paddle.y
+        const ballOffsetX = ball.x - this.paddle.x
+        const ballOffsetY = ball.y - this.paddle.y
         const localX = ballOffsetX * tangentX + ballOffsetY * tangentY
         const localY = ballOffsetX * radialX + ballOffsetY * radialY
         const halfWidth = this.paddle.displayWidth / 2
@@ -830,7 +878,7 @@ class Play extends Phaser.Scene {
         const separationX = localX - closestX
         const separationY = localY - closestY
         const distance = Math.hypot(separationX, separationY)
-        const ballRadius = this.ball.body.halfWidth
+        const ballRadius = ball.body.halfWidth
 
         if (distance >= ballRadius) {
             return
@@ -842,20 +890,20 @@ class Play extends Phaser.Scene {
             normalX = (tangentX * separationX + radialX * separationY) / distance
             normalY = (tangentY * separationX + radialY * separationY) / distance
         } else {
-            const radialVelocity = this.ball.body.velocity.x * radialX +
-                this.ball.body.velocity.y * radialY
+            const radialVelocity = ball.body.velocity.x * radialX +
+                ball.body.velocity.y * radialY
             const direction = radialVelocity > 0 ? -1 : 1
             normalX = radialX * direction
             normalY = radialY * direction
         }
 
-        this.ball.setPosition(
-            this.ball.x + normalX * (ballRadius - distance),
-            this.ball.y + normalY * (ballRadius - distance)
+        ball.setPosition(
+            ball.x + normalX * (ballRadius - distance),
+            ball.y + normalY * (ballRadius - distance)
         )
 
-        const velocityX = this.ball.body.velocity.x
-        const velocityY = this.ball.body.velocity.y
+        const velocityX = ball.body.velocity.x
+        const velocityY = ball.body.velocity.y
         const approachSpeed = velocityX * normalX + velocityY * normalY
         if (approachSpeed >= 0) {
             return
@@ -877,14 +925,14 @@ class Play extends Phaser.Scene {
         const speed = Math.hypot(velocityX, velocityY)
         const outgoingX = normalX * Math.cos(spread) + tangentX * Math.sin(spread)
         const outgoingY = normalY * Math.cos(spread) + tangentY * Math.sin(spread)
-        this.setBallVelocityAtSpeed(outgoingX, outgoingY, speed)
+        this.setBallVelocityAtSpeed(outgoingX, outgoingY, speed, ball)
         this.paddleHit.play()
     }
 
-    checkCentipedeCollision() {
-        const ballRadius = this.ball.body.halfWidth
-        const velocityX = this.ball.body.velocity.x
-        const velocityY = this.ball.body.velocity.y
+    checkCentipedeCollision(ball = this.ball) {
+        const ballRadius = ball.body.halfWidth
+        const velocityX = ball.body.velocity.x
+        const velocityY = ball.body.velocity.y
 
         //test the ball against each segment's rotated rectangle
         for (const segment of this.centipede) {
@@ -892,8 +940,8 @@ class Play extends Phaser.Scene {
             const axisY = Math.sin(segment.rotation)
             const sideX = -axisY
             const sideY = axisX
-            const offsetX = this.ball.x - segment.x
-            const offsetY = this.ball.y - segment.y
+            const offsetX = ball.x - segment.x
+            const offsetY = ball.y - segment.y
             const localX = offsetX * axisX + offsetY * axisY
             const localY = offsetX * sideX + offsetY * sideY
             const halfWidth = segment.displayWidth * 0.30
@@ -935,14 +983,14 @@ class Play extends Phaser.Scene {
             normalX /= normalLength
             normalY /= normalLength
 
-            this.ball.setPosition(
-                this.ball.x + normalX * penetration,
-                this.ball.y + normalY * penetration
+            ball.setPosition(
+                ball.x + normalX * penetration,
+                ball.y + normalY * penetration
             )
 
             const approachSpeed = velocityX * normalX + velocityY * normalY
             if (approachSpeed < 0) {
-                this.handleBallSegmentHit()
+                this.handleBallSegmentHit(ball)
                 this.enemyHit.play()
 
                 const hitPathIndex = segment.pathIndex
@@ -1081,26 +1129,30 @@ class Play extends Phaser.Scene {
         this.enemyHit.play()
     }
     //checking for player ball collision:
-    checkMiniBallCollision() {
-        const ballRadius = this.ball.body.halfWidth
+    checkMiniBallCollision(ball = this.ball) {
+        const ballRadius = ball.body.halfWidth
 
         for (let i = this.miniCentipedes.length - 1; i >= 0; i--) {
             const mini = this.miniCentipedes[i]
 
             if (!mini.ballCollisionArmed) {
-                const ballClearedMini = mini.segments.every(segment => {
-                    const distance = Phaser.Math.Distance.Between(
-                        this.ball.x,
-                        this.ball.y,
-                        segment.x,
-                        segment.y
-                    )
-                    const segmentRadius = Math.min(
-                        segment.displayWidth,
-                        segment.displayHeight
-                    ) * 0.4
+                const ballClearedMini = this.balls.every(activeBall => {
+                    return mini.segments.every(segment => {
+                        const distance = Phaser.Math.Distance.Between(
+                            activeBall.x,
+                            activeBall.y,
+                            segment.x,
+                            segment.y
+                        )
 
-                    return distance >= ballRadius + segmentRadius + ballRadius
+                        const segmentRadius = Math.min(
+                            segment.displayWidth,
+                            segment.displayHeight
+                        ) * 0.4
+
+                        return distance >=
+                            activeBall.body.halfWidth * 2 + segmentRadius
+                    })
                 })
 
                 if (!ballClearedMini) {
@@ -1113,8 +1165,8 @@ class Play extends Phaser.Scene {
             for (const segment of mini.segments) {
 
                 const distance = Phaser.Math.Distance.Between(
-                    this.ball.x,
-                    this.ball.y,
+                    ball.x,
+                    ball.y,
                     segment.x,
                     segment.y
                 )
@@ -1129,7 +1181,7 @@ class Play extends Phaser.Scene {
                     //destroy the mini-centipede
                     this.destroyMiniCentipede(i)
 
-                    this.handleBallSegmentHit()
+                    this.handleBallSegmentHit(ball)
 
                     break
                 }
