@@ -26,6 +26,11 @@ class Play extends Phaser.Scene {
         this.load.image('centipedeBody2', 'catterpillar body 2.png')
         this.load.image('centipedeTail', 'catterpillar tail 1.png')
         this.load.image('centipedeTail2', 'catterpillar tail 2.png')
+
+        //powerups
+        //multishot powerup assets
+        this.load.image('multishot1', 'multishot 1.png')
+        this.load.image('multishot2', 'multishot 2.png')
     }
 
     create() {
@@ -99,6 +104,16 @@ class Play extends Phaser.Scene {
         this.ball.body.setVelocityY(this.ballSpeed)
         this.ball.body.setCollideWorldBounds(true, 1, 1, true)
         this.ball.body.setBounce(1)
+        //multishot:
+        //multishot settings
+        this.balls = [this.ball]
+        this.extraBalls = []
+
+        this.multishotActive = false
+        this.multishotTimer = null
+        this.multishotDuration = 8000
+        this.multishotChance = 0.12 //12% of segments are multishot
+
         this.physics.world.on('worldbounds', (body, up, down, left, right) => {
             if (body.gameObject === this.ball) {
                 this.bounceBallAtEdge(up, down, left, right)
@@ -143,6 +158,18 @@ class Play extends Phaser.Scene {
             frameRate: 4,
             repeat: -1
         })
+        //multishot segment animation
+        if (!this.anims.exists('multishotAnim')) {
+            this.anims.create({
+                key: 'multishotAnim',
+                frames: [
+                    { key: 'multishot1' },
+                    { key: 'multishot2' }
+                ],
+                frameRate: 4,
+                repeat: -1
+            })
+        }
         
         //spiral movement settings
         this.spiralAngle = 0
@@ -164,28 +191,40 @@ class Play extends Phaser.Scene {
         for (let i = 0; i < this.segmentCount; i++) {
             let sprite = 'centipedeBody'
             let animation = 'centipedeBodyAnim'
+            let isMultishot = false
 
-            if(i === 0) {
+            if (i === 0) {
                 sprite = 'centipedeHead'
                 animation = 'centipedeHeadAnim'
             }
-            else if (i === this.segmentCount - 1){
+            else if (i === this.segmentCount - 1) {
                 sprite = 'centipedeTail'
                 animation = 'centipedeTailAnim'
             }
+            else if (Math.random() < this.multishotChance) {
+                sprite = 'multishot1'
+                animation = 'multishotAnim'
+                isMultishot = true
+            }
 
             const segment = this.add.sprite(
-                width/2,
-                height/2,
+                width / 2,
+                height / 2,
                 sprite
             )
+
             segment.setScale(9)
             segment.play(animation)
             segment.currentAnimationKey = animation
+
+            //store whether this segment contains multishot
+            segment.isMultishot = isMultishot
+
             segment.pathIndex = i
             segment.targetPathIndex = i
             segment.shiftStartPathIndex = i
             segment.shiftElapsed = 1000
+
             this.centipede.push(segment)
         }
 
@@ -935,11 +974,18 @@ class Play extends Phaser.Scene {
 
     refreshCentipedeEndAnimations() {
         const tailIndex = this.centipede.length - 1
+
         this.centipede.forEach((segment, index) => {
             let animation = 'centipedeBodyAnim'
-            if (index === 0) {
+
+            //preserve multishot segments
+            if (segment.isMultishot) {
+                animation = 'multishotAnim'
+            }
+            else if (index === 0) {
                 animation = 'centipedeHeadAnim'
-            } else if (index === tailIndex) {
+            }
+            else if (index === tailIndex) {
                 animation = 'centipedeTailAnim'
             }
 
