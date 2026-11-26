@@ -861,6 +861,82 @@ class Play extends Phaser.Scene {
 
         this.sendBallToCenter(ball)
     }
+    //activate multishot powerup
+    activateMultishot(sourceBall = this.ball) {
+
+        //refresh duration if multishot is already active
+        if (this.multishotActive) {
+            if (this.multishotTimer) {
+                this.multishotTimer.remove(false)
+            }
+
+            this.multishotTimer = this.time.delayedCall(
+                this.multishotDuration,
+                () => this.endMultishot()
+            )
+
+            this.powerUp.play()
+            return
+        }
+
+        this.multishotActive = true
+        this.powerUp.play()
+
+        //get the direction of the ball that hit the segment
+        const angle = Math.atan2(
+            sourceBall.body.velocity.y,
+            sourceBall.body.velocity.x
+        )
+
+        const spread = Phaser.Math.DegToRad(30)
+
+        //create two additional balls
+        for (const direction of [-1, 1]) {
+
+            const launchAngle = angle + spread * direction
+
+            const extraBall = this.physics.add.sprite(
+                sourceBall.x,
+                sourceBall.y,
+                'ball'
+            )
+
+            extraBall.body.setCircle(extraBall.width / 2)
+            extraBall.body.setCollideWorldBounds(true, 1, 1, true)
+            extraBall.body.setBounce(1)
+
+            //each ball has its own empowerment state
+            extraBall.fireActive = false
+            extraBall.firePenetrations = 0
+
+            extraBall.body.setVelocity(
+                Math.cos(launchAngle) * this.ballSpeed,
+                Math.sin(launchAngle) * this.ballSpeed
+            )
+
+            this.balls.push(extraBall)
+            this.extraBalls.push(extraBall)
+        }
+
+        //remove extra balls after 8 seconds
+        this.multishotTimer = this.time.delayedCall(
+            this.multishotDuration,
+            () => this.endMultishot()
+        )
+    }
+    //remove temporary multishot balls
+    endMultishot() {
+
+        for (const ball of this.extraBalls) {
+            ball.destroy()
+        }
+
+        this.extraBalls = []
+        this.balls = [this.ball]
+
+        this.multishotActive = false
+        this.multishotTimer = null
+    }
 
     checkPaddleCollision() {
         const radialX = Math.cos(this.paddleOrbitAngle)
@@ -995,6 +1071,9 @@ class Play extends Phaser.Scene {
 
                 const hitPathIndex = segment.pathIndex
 
+                //check if the destroyed segment contains multishot
+                const wasMultishot = segment.isMultishot
+
                 //save the destroyed segment's position
                 const spawnX = segment.x
                 const spawnY = segment.y
@@ -1006,6 +1085,11 @@ class Play extends Phaser.Scene {
 
                 //spawn mini centipede going towards planet
                 this.spawnMiniCentipede(spawnX, spawnY)
+
+                //activate multishot if it was a powerup segment
+                if (wasMultishot) {
+                    this.activateMultishot(ball)
+                }
 
                 //animate segments to fill the gap
                 for (const remainingSegment of this.centipede) {
