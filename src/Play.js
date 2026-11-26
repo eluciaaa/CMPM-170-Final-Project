@@ -938,7 +938,7 @@ class Play extends Phaser.Scene {
         this.multishotTimer = null
     }
 
-    checkPaddleCollision() {
+    checkPaddleCollision(ball = this.ball) {
         const radialX = Math.cos(this.paddleOrbitAngle)
         const radialY = Math.sin(this.paddleOrbitAngle)
         const tangentX = -radialY
