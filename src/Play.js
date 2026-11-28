@@ -31,6 +31,8 @@ class Play extends Phaser.Scene {
         //multishot powerup assets
         this.load.image('multishot1', 'multishot 1.png')
         this.load.image('multishot2', 'multishot 2.png')
+        this.load.image('slowCaterpillar1', 'slow catterpillar 1.png')
+        this.load.image('slowCaterpillar2', 'slow catterpillar 2.png')
     }
 
     create() {
@@ -114,6 +116,12 @@ class Play extends Phaser.Scene {
         this.multishotTimer = null
         this.multishotDuration = 8000
         this.multishotChance = 0.12 //12% of segments are multishot
+        this.powerupPopup = null
+        this.slowCaterpillarActive = false
+        this.slowCaterpillarTimer = null
+        this.slowCaterpillarDuration = 8000
+        this.slowCaterpillarMultiplier = 0.5
+        this.slowCaterpillarChance = 0.12
 
         //again keeping all logic same, but passing it onto all active balls
         this.physics.world.on('worldbounds', (body, up, down, left, right) => {
@@ -173,6 +181,17 @@ class Play extends Phaser.Scene {
                 repeat: -1
             })
         }
+        if (!this.anims.exists('slowCaterpillarAnim')) {
+            this.anims.create({
+                key: 'slowCaterpillarAnim',
+                frames: [
+                    { key: 'slowCaterpillar1' },
+                    { key: 'slowCaterpillar2' }
+                ],
+                frameRate: 4,
+                repeat: -1
+            })
+        }
         
         //spiral movement settings
         this.spiralAngle = 0
@@ -191,10 +210,12 @@ class Play extends Phaser.Scene {
         )
 
         //create centipede segments:
+        let previousWasPowerup = false
         for (let i = 0; i < this.segmentCount; i++) {
             let sprite = 'centipedeBody'
             let animation = 'centipedeBodyAnim'
             let isMultishot = false
+            let isSlowCaterpillar = false
 
             if (i === 0) {
                 sprite = 'centipedeHead'
@@ -204,10 +225,17 @@ class Play extends Phaser.Scene {
                 sprite = 'centipedeTail'
                 animation = 'centipedeTailAnim'
             }
-            else if (Math.random() < this.multishotChance) {
-                sprite = 'multishot1'
-                animation = 'multishotAnim'
-                isMultishot = true
+            else if (!previousWasPowerup) {
+                const powerupRoll = Math.random()
+                if (powerupRoll < this.multishotChance) {
+                    sprite = 'multishot1'
+                    animation = 'multishotAnim'
+                    isMultishot = true
+                } else if (powerupRoll < this.multishotChance + this.slowCaterpillarChance) {
+                    sprite = 'slowCaterpillar1'
+                    animation = 'slowCaterpillarAnim'
+                    isSlowCaterpillar = true
+                }
             }
 
             const segment = this.add.sprite(
@@ -222,6 +250,8 @@ class Play extends Phaser.Scene {
 
             //store whether this segment contains multishot
             segment.isMultishot = isMultishot
+            segment.isSlowCaterpillar = isSlowCaterpillar
+            previousWasPowerup = isMultishot || isSlowCaterpillar
 
             segment.pathIndex = i
             segment.targetPathIndex = i
@@ -861,8 +891,60 @@ class Play extends Phaser.Scene {
 
         this.sendBallToCenter(ball)
     }
+
+    showPowerupPopup(message, color) {
+        if (this.powerupPopup) {
+            this.tweens.killTweensOf(this.powerupPopup)
+            this.powerupPopup.destroy()
+        }
+
+        const popup = this.add.text(width / 2, height / 2, message, {
+            fontFamily: 'monospace',
+            fontSize: '72px',
+            fontStyle: 'bold',
+            color: color,
+            stroke: '#0d0929',
+            strokeThickness: 9,
+            shadow: {
+                offsetX: 0,
+                offsetY: 4,
+                color: '#0d0929',
+                blur: 8,
+                fill: true
+            },
+            align: 'center'
+        }).setOrigin(0.5).setDepth(100)
+
+        popup.setScale(0.6)
+        this.powerupPopup = popup
+
+        this.tweens.add({
+            targets: popup,
+            scale: 1.15,
+            duration: 180,
+            ease: 'Back.Out',
+            onComplete: () => {
+                this.tweens.add({
+                    targets: popup,
+                    alpha: 0,
+                    scale: 1.05,
+                    delay: 220,
+                    duration: 600,
+                    ease: 'Cubic.easeIn',
+                    onComplete: () => {
+                        if (this.powerupPopup === popup) {
+                            this.powerupPopup = null
+                        }
+                        popup.destroy()
+                    }
+                })
+            }
+        })
+    }
+
     //activate multishot powerup
     activateMultishot(sourceBall = this.ball) {
+        this.showPowerupPopup('Multiball!', '#c77dff')
 
         //refresh duration if multishot is already active
         if (this.multishotActive) {
@@ -936,6 +1018,25 @@ class Play extends Phaser.Scene {
 
         this.multishotActive = false
         this.multishotTimer = null
+    }
+
+    activateSlowCaterpillar() {
+        this.showPowerupPopup('Centipede Slowed!', '#55b8ff')
+
+        if (this.slowCaterpillarTimer) {
+            this.slowCaterpillarTimer.remove(false)
+        } else {
+            this.powerUp.play()
+        }
+
+        this.slowCaterpillarActive = true
+        this.slowCaterpillarTimer = this.time.delayedCall(
+            this.slowCaterpillarDuration,
+            () => {
+                this.slowCaterpillarActive = false
+                this.slowCaterpillarTimer = null
+            }
+        )
     }
 
     checkPaddleCollision(ball = this.ball) {
@@ -1073,6 +1174,7 @@ class Play extends Phaser.Scene {
 
                 //check if the destroyed segment contains multishot
                 const wasMultishot = segment.isMultishot
+                const wasSlowCaterpillar = segment.isSlowCaterpillar
 
                 //save the destroyed segment's position
                 const spawnX = segment.x
@@ -1089,6 +1191,9 @@ class Play extends Phaser.Scene {
                 //activate multishot if it was a powerup segment
                 if (wasMultishot) {
                     this.activateMultishot(ball)
+                }
+                if (wasSlowCaterpillar) {
+                    this.activateSlowCaterpillar()
                 }
 
                 //animate segments to fill the gap
@@ -1113,6 +1218,9 @@ class Play extends Phaser.Scene {
             //preserve multishot segments
             if (segment.isMultishot) {
                 animation = 'multishotAnim'
+            }
+            else if (segment.isSlowCaterpillar) {
+                animation = 'slowCaterpillarAnim'
             }
             else if (index === 0) {
                 animation = 'centipedeHeadAnim'
@@ -1407,8 +1515,11 @@ class Play extends Phaser.Scene {
             delta,
             Math.max(0, this.centipedeBoostDuration - this.centipedeElapsed)
         )
-        const movementDelta = delta + boostTime
+        let movementDelta = delta + boostTime
         this.centipedeElapsed += delta
+        if (this.slowCaterpillarActive) {
+            movementDelta *= this.slowCaterpillarMultiplier
+        }
         const dt = movementDelta / 1000
 
         const previousRadius = this.spiralRadius
