@@ -78,11 +78,24 @@ class Play extends Phaser.Scene {
         })
 
         this.bg = this.add.image(0, 0, 'bg').setOrigin(0).setDisplaySize(width, height)
-        this.warningZoneRadius = 300
+        //hidden radius used to warn when mini-centipedes get near the planet
+        this.warningZoneRadius = 400
         this.warningZone = this.add.circle(width / 2, height / 2, this.warningZoneRadius, 0xff9ed6, 0.12)
         this.warningZone.setStrokeStyle(4, 0xff9ed6, 0.8)
         this.warningZone.setDepth(0)
         this.warningZone.setAlpha(0)
+        //red pulse while any mini-centipede is in the warning zone
+        this.miniWarningFlash = this.add.rectangle(
+            width / 2,
+            height / 2,
+            width,
+            height,
+            0xff2020,
+            1
+        )
+        this.miniWarningFlash.setDepth(1500)
+        this.miniWarningFlash.setAlpha(0)
+        this.miniWarningTween = null
 
         this.gamePaused = false
 
@@ -209,7 +222,7 @@ class Play extends Phaser.Scene {
             this.spiralShrinkSpeed
         )
 
-        //create centipede segments:
+        //do not roll for another powerup immediately after placing one
         let previousWasPowerup = false
         for (let i = 0; i < this.segmentCount; i++) {
             let sprite = 'centipedeBody'
@@ -503,6 +516,23 @@ class Play extends Phaser.Scene {
     checkZoneContacts() {
         const centerX = width / 2
         const centerY = height / 2
+        const miniTouchesWarningZone = this.miniCentipedes.some(mini =>
+            mini.segments.some(segment => {
+                const segmentRadius = Math.min(
+                    segment.displayWidth,
+                    segment.displayHeight
+                ) * 0.5
+                const distance = Phaser.Math.Distance.Between(
+                    segment.x,
+                    segment.y,
+                    centerX,
+                    centerY
+                )
+
+                return distance <= this.warningZoneRadius + segmentRadius
+            })
+        )
+        this.setMiniWarningFlash(miniTouchesWarningZone)
 
         const checkSegment = (segment) => {
             const segmentRadius = Math.min(segment.displayWidth, segment.displayHeight) * 0.5
@@ -531,10 +561,29 @@ class Play extends Phaser.Scene {
         }
     }
 
+    setMiniWarningFlash(active) {
+        if (active && !this.miniWarningTween) {
+            this.miniWarningTween = this.tweens.add({
+                targets: this.miniWarningFlash,
+                alpha: 0.55,
+                duration: 220,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            })
+        } else if (!active && this.miniWarningTween) {
+            this.miniWarningTween.stop()
+            this.miniWarningTween.remove()
+            this.miniWarningTween = null
+            this.miniWarningFlash.setAlpha(0)
+        }
+    }
+
     pauseAtPlanet() {
         if (this.gamePaused) {
             return
         }
+        this.setMiniWarningFlash(false)
         //stops the gameplay
         this.gamePaused = true
         this.physics.world.pause()
@@ -892,6 +941,7 @@ class Play extends Phaser.Scene {
         this.sendBallToCenter(ball)
     }
 
+    //show popup text when a powerup is collected
     showPowerupPopup(message, color) {
         if (this.powerupPopup) {
             this.tweens.killTweensOf(this.powerupPopup)
@@ -942,9 +992,18 @@ class Play extends Phaser.Scene {
         })
     }
 
+    playPowerupSound() {
+        if (this.powerUp.isPlaying) {
+            this.powerUp.stop()
+        }
+
+        this.powerUp.play()
+    }
+
     //activate multishot powerup
     activateMultishot(sourceBall = this.ball) {
         this.showPowerupPopup('Multiball!', '#c77dff')
+        this.playPowerupSound()
 
         //refresh duration if multishot is already active
         if (this.multishotActive) {
@@ -957,12 +1016,10 @@ class Play extends Phaser.Scene {
                 () => this.endMultishot()
             )
 
-            this.powerUp.play()
             return
         }
 
         this.multishotActive = true
-        this.powerUp.play()
 
         //get the direction of the ball that hit the segment
         const angle = Math.atan2(
@@ -1020,13 +1077,12 @@ class Play extends Phaser.Scene {
         this.multishotTimer = null
     }
 
+    //halve the main centipede's movement temporarily
     activateSlowCaterpillar() {
         this.showPowerupPopup('Centipede Slowed!', '#55b8ff')
-
+        this.playPowerupSound()
         if (this.slowCaterpillarTimer) {
             this.slowCaterpillarTimer.remove(false)
-        } else {
-            this.powerUp.play()
         }
 
         this.slowCaterpillarActive = true
